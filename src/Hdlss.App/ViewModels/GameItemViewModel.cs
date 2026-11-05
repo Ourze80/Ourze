@@ -28,7 +28,7 @@ public sealed partial class GameItemViewModel(Game game) : ObservableObject
     public Brush StatusBrush => (Brush)Application.Current.Resources[Summary.Badge switch
     {
         GameBadge.NrActive => "Success",                                  // active: green
-        GameBadge.Legacy or GameBadge.Foreign or GameBadge.NoExe => "Accent", // to look at: logo yellow
+        GameBadge.Legacy or GameBadge.Foreign or GameBadge.NoExe => "Accent", // to look at: brand cyan
         GameBadge.AntiCheat => "Danger",
         _ => "Muted",
     }];
