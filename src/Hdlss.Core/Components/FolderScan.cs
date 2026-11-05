@@ -1,0 +1,84 @@
+using System.Text.RegularExpressions;
+using Hdlss.Core.IO;
+
+namespace Hdlss.Core.Components;
+
+/// <summary>What is physically present in a game folder, independent of who installed it.</summary>
+public sealed class FolderScan
+{
+    public static readonly string[] ProxyNames = ["dxgi.dll", "winmm.dll", "version.dll", "dbghelp.dll", "d3d12.dll", "wininet.dll", "winhttp.dll"];
+    private static readonly string[] ReShadeNames = [.. ProxyNames, "ReShade64.dll", "d3d11.dll", "dinput8.dll", "opengl32.dll", Vulkan.ReShadeDll];
+
+    public List<string> ReShadeLoaders { get; } = [];
+    public bool ReShadeSupportsAddons { get; private set; }
+    public string? OptiScalerProxy { get; private set; }
+    public List<string> OptiScalerProxies { get; } = [];
+    public List<string> Addons { get; } = [];
+    public string? AntiCheat { get; private set; }
+    public bool HasNrModel { get; private set; }
+    public string ReShadeConfig { get; private set; } = "ReShade.ini";
+    public string AddonFolder { get; private set; } = "";
+
+    public static FolderScan Run(string folder, string gameRoot)
+    {
+        var s = new FolderScan();
+        foreach (var name in ReShadeNames)
+        {
+            var path = PathGuard.Resolve(folder, name);
+            if (File.Exists(path) && IsReShade(path)) s.ReShadeLoaders.Add(name);
+        }
+        s.ReShadeSupportsAddons = s.ReShadeLoaders.Count == 1
+            && PeFile.ContainsAscii(PathGuard.Resolve(folder, s.ReShadeLoaders[0]), "LoadFromDllMain");
+        foreach (var name in ProxyNames)
+        {
+            var path = PathGuard.Resolve(folder, name);
+            if (File.Exists(path) && IsOptiScaler(path)) s.OptiScalerProxies.Add(name);
+        }
+        s.OptiScalerProxy = s.OptiScalerProxies.FirstOrDefault();
+
+        // ReShade reads "<loader>.ini" when ReShade.ini is absent.
+        if (s.ReShadeLoaders.Count == 1 && !s.ReShadeLoaders[0].Contains('/'))
+        {
+            var custom = Path.ChangeExtension(s.ReShadeLoaders[0], ".ini");
+            if (!File.Exists(PathGuard.Resolve(folder, "ReShade.ini")) && File.Exists(PathGuard.Resolve(folder, custom))) s.ReShadeConfig = custom;
+        }
+        var addonPath = IniDocument.Load(PathGuard.Resolve(folder, s.ReShadeConfig)).Get("ADDON", "AddonPath");
+        var value = addonPath?.Trim() ?? "";
+        if (value is not ("" or "." or ".\\" or "./"))
+        {
+            if (Path.IsPathRooted(value)) s.AddonFolder = "?";
+            else
+            {
+                var rel = value.StartsWith(".\\") || value.StartsWith("./") ? value[2..] : value;
+                try { s.AddonFolder = PathGuard.Normalize(rel); PathGuard.Resolve(folder, s.AddonFolder); }
+                catch (UnsafePathException) { s.AddonFolder = "?"; }
+            }
+        }
+        foreach (var dir in new[] { folder, s.AddonFolder is "" or "?" ? folder : PathGuard.Resolve(folder, s.AddonFolder) }.Distinct(StringComparer.OrdinalIgnoreCase))
+            if (Directory.Exists(dir))
+                foreach (var file in Directory.EnumerateFiles(dir, "*.addon64"))
+                    s.Addons.Add(PathGuard.RelativeTo(folder, file));
+
+        s.HasNrModel = File.Exists(PathGuard.Resolve(folder, "nvngx_dlssnr.dll"));
+        if (Directory.Exists(Path.Combine(gameRoot, "EasyAntiCheat")) || Directory.Exists(Path.Combine(gameRoot, "BattlEye"))
+            || Directory.EnumerateFiles(folder, "*EasyAntiCheat*").Any())
+            s.AntiCheat = "Anti-cheat rilevato (EasyAntiCheat/BattlEye): le DLL iniettate possono causare un ban.";
+        return s;
+    }
+
+    /// <summary>Neural Rendering add-ons not counting the given (managed) relative paths.</summary>
+    public IEnumerable<string> NrAddons() =>
+        Addons.Where(a => Regex.IsMatch(Path.GetFileName(a), "renodx-dlss|dlss5|dlssnr|neural|shortfuse", RegexOptions.IgnoreCase));
+
+    public static bool IsReShade(string path) =>
+        PeFile.IsPe64(path) && PeFile.Identity(path).Contains("ReShade", StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsOptiScaler(string path)
+    {
+        if (!PeFile.IsPe64(path)) return false;
+        var id = PeFile.Identity(path);
+        if (Regex.IsMatch(id, "ReShade|SCSKiller|Ultimate.ASI.Loader", RegexOptions.IgnoreCase)) return false;
+        if (id.Contains("OptiScaler", StringComparison.OrdinalIgnoreCase)) return true;
+        return new FileInfo(path).Length < 80_000_000 && PeFile.ContainsAscii(path, "OptiScaler.ini");
+    }
+}

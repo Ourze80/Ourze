@@ -1,0 +1,26 @@
+<Window x:Class="Hdlss.App.Views.PlanDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="clr-namespace:Hdlss.App"
+        Style="{StaticResource AppWindow}" Width="820" Height="600" MinWidth="560" MinHeight="380"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Title="{Binding [plan.title], Source={x:Static app:Loc.Instance}}">
+    <Grid Margin="22">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel>
+            <TextBlock x:Name="Header" Style="{StaticResource Heading}" />
+            <TextBlock x:Name="SubHeader" Style="{StaticResource MutedText}" Margin="0,4,0,12" />
+        </StackPanel>
+        <TextBox x:Name="Body" Grid.Row="1" IsReadOnly="True" FontFamily="{StaticResource MonoFont}" FontSize="13"
+                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" />
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="{Binding [plan.cancel], Source={x:Static app:Loc.Instance}}" IsCancel="True" />
+            <Button x:Name="ApplyButton" Style="{StaticResource Primary}" IsDefault="True" Margin="0" Click="Apply_Click"
+                    Content="{Binding [plan.apply], Source={x:Static app:Loc.Instance}}" />
+        </StackPanel>
+    </Grid>
+</Window>

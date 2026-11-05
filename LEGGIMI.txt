@@ -1,0 +1,45 @@
+HDLSS5 2.0 · versione portatile per Windows
+============================================
+
+REQUISITI
+- Windows 10/11 a 64 bit.
+- Scheda NVIDIA RTX 4000 o RTX 5000 per il Neural Rendering, driver 616.56 o successivo.
+- Non serve installare .NET: è già incluso in HDLSS5.exe.
+
+AVVIO
+1. Estrai lo zip in una cartella in cui puoi scrivere (es. D:\Giochi\HDLSS5).
+   Non usare "Programmi" e non avviarlo dall'interno dello zip.
+2. Avvia HDLSS5.exe (non servono permessi di amministratore).
+3. L'app trova da sola i giochi Steam e Xbox/Game Pass. Gli altri si aggiungono con «+ Aggiungi gioco».
+
+USO IN BREVE
+- Apri un gioco dalla libreria: la scheda in alto spiega com'è messo e propone un solo pulsante
+  (Attiva Neural Rendering, Porta sulla 2.0, Importa in HDLSS5, Ha funzionato?).
+- Chiudi sempre il gioco prima di installare o rimuovere qualcosa.
+- Dopo aver giocato qualche minuto, «Ha funzionato?» legge i log e ti dice se il Neural Rendering è partito.
+- «Avanzate» (barra a sinistra) mostra percorsi, opzioni, componenti, installazioni 1.x e cronologia.
+- Ogni file sostituito viene salvato prima: puoi annullare dalla Cronologia o con «Rimuovi».
+
+CONTENUTO DELLA CARTELLA
+- HDLSS5.exe        l'applicazione
+- bundled\          add-on RenoDX NR (Lecram 10.8, ShortFuse) e lettore HDR per UE4SS
+- nr-packages\      modelli NR 310.9.16.0 per RTX 4000 e RTX 5000 (servono, non cancellarli)
+- SHA256SUMS.txt    impronte per verificare i file
+- data-v2\          creata al primo avvio: impostazioni, backup, cronologia, registro attività
+
+AGGIORNARE DA HDLSS5 1.x
+- Puoi estrarre la 2.0 in una cartella nuova. In Impostazioni indica la cartella della 1.x
+  (quella che contiene «data»): servono i suoi backup per portare i giochi sulla 2.0.
+- La 2.0 non modifica mai la cartella «data» della 1.x.
+
+SPOSTARE O SALVARE I DATI
+- Per tenere i dati altrove crea accanto a HDLSS5.exe un file data-location.txt
+  con il percorso della cartella da usare (una riga).
+- Per una copia di sicurezza basta copiare la cartella data-v2.
+
+NOTE
+- HDLSS5.exe non è firmato digitalmente: Windows SmartScreen può chiedere conferma al primo avvio
+  («Ulteriori informazioni» > «Esegui comunque»). Alcuni antivirus segnalano per euristica gli
+  strumenti che installano DLL nei giochi: verifica il file con SHA256SUMS.txt.
+- I componenti vengono scaricati dai repository ufficiali dei rispettivi autori e verificati.
+- Nei giochi con anti-cheat (EasyAntiCheat, BattlEye) l'installazione è bloccata.

@@ -1,99 +1,90 @@
-# HDLSS5
+<img src="assets/brand-logo.png" alt="HDLSS5" height="64">
 
-> [!NOTE]
-> **HDLSS5 2.0 preview is available** — a full rewrite in .NET 8 with a new install engine, a clearer game page and a redesigned DLL page (Italian interface for now).
-> [Download the 2.0 preview](https://github.com/giorgiobascialla-hub/Ourze/releases/tag/v2.0.0-preview) · [Source on the `v2` branch](https://github.com/giorgiobascialla-hub/Ourze/tree/v2).
-> 1.5.1 below remains the stable version.
->
-> **È disponibile l'anteprima di HDLSS5 2.0**, riscritto da zero: [scarica l'anteprima](https://github.com/giorgiobascialla-hub/Ourze/releases/tag/v2.0.0-preview) · [codice sul ramo `v2`](https://github.com/giorgiobascialla-hub/Ourze/tree/v2). La versione stabile resta la 1.5.1.
+# HDLSS5 2.0
 
-**Portable Windows manager for OptiScaler, ReShade, Neural Rendering, HDR add-ons and graphics DLLs.**
+Gestore di mod grafiche per giochi PC su GPU NVIDIA RTX: Neural Rendering (ReShade, RenoDX NR, OptiScaler), DLSS e Streamline alla versione più recente, HDR, generazione fotogrammi e loader per mod. Ogni modifica è registrata e si annulla con un clic.
 
-[Download HDLSS5 1.5.1](https://github.com/giorgiobascialla-hub/Ourze/releases/tag/v1.5.1) · [Changelog](CHANGELOG.md)
+## Download
 
-<img src="assets/brand-logo.png" alt="HDLSS5" width="420">
+Scarica `HDLSS5-Portable-2.0.0.zip` dall'[ultima release](https://github.com/giorgiobascialla-hub/Ourze/releases/latest), estrailo in una cartella scrivibile e avvia `HDLSS5.exe`.
 
-HDLSS5 brings component installation, version selection, update checks and recovery into one interface. Select a game from the cover library, let the app detect its executable and manage supported graphics components from three consistent categories. This is an independent community project; community Neural Rendering injectors are not official NVIDIA integrations.
+- Windows 10/11 x64, nessun runtime da installare.
+- Interfaccia in italiano.
+- Verifica dell'archivio: confronta lo SHA-256 con il file `.sha256` della release.
+- La versione 1.5.1 resta disponibile tra le [release precedenti](https://github.com/giorgiobascialla-hub/Ourze/releases); la 2.0 riconosce le sue installazioni e può adottarle o ripristinarle.
 
-## New in 1.5
+Riscrittura da zero di HDLSS5 1.5 in **.NET 8 + WPF (MVVM)**. Stessi percorsi Neural Rendering, architettura nuova.
 
-OptiScaler F5 replaces NeuRotic Alpha. ASI Loader 10 is recognized correctly. Animated progress stays inside action buttons, error messages use red, and optional sections have larger, clearer headers. RenoDX availability is checked against its catalog. Background game inspection, scoped Vulkan support and verified downloads preserve recovery workflows. See the [full changelog](CHANGELOG.md).
+## Struttura
 
-## Features
-
-### Library and workspace
-- Discover Steam and Xbox / Game Pass installations or add an executable manually.
-- Browse game covers in the side library, search and select a game without leaving the workspace.
-- Keep the selected category and detail sections when switching games.
-- Responsive component cards, visible primary actions, smooth library scrolling, themes and six interface languages: Italian, English, Spanish, French, German and Portuguese.
-- Internal help, changelog, activity log and technical details.
-
-### OptiScaler
-- Install official OptiScaler Standard without Neural Rendering, or choose F5 · Janblade (NR Multipass / HDR).
-- Configure available Neural Rendering quality, style and build-specific parameters.
-- Configure supported Frame Generation modes and multipliers, with hardware/build limitations shown in the app.
-- Keep installation, apply-settings, removal and Neural Rendering cleanup actions accessible.
-
-### ReShade and add-ons
-- Install supported ReShade builds with add-on support.
-- Manage RenoDX HDR and ReShade Neural Rendering, including recognized manual installations and local imports.
-- Component-specific update and removal controls.
-- Lilium HDR tools and CAS sharpening packages.
-- MFG Unlock management, ASI Loader and conditional UE4SS tools.
-- REFramework installation for recognized RE Engine executables, with supported legacy variants and loader conflict checks.
-- Conditional HDR configuration where a supported profile exists.
-
-### DLL and Streamline management
-- Separate Super Resolution, Ray Reconstruction, Frame Generation and Neural Rendering model selection.
-- Select the version; the app determines the DLL destination and provides one restore action per component.
-- Manage Streamline per detected folder; multiple locations are not silently treated as one installation.
-- Online catalogs, local imports and cached downloads where supported.
-- Compare files and preserve backups; detecting a file does not prove the game loads it.
-- Save a working DLL configuration and restore it manually after testing.
-
-### Updates and recovery
-- Verify package identity and published hashes where available.
-- Preserve supported managed backups and recovery information.
-- Distinguish unavailable update checks from confirmed updates.
-- Verify large RenoDX downloads with bounded size/time checks and x64/hash validation.
-
-## Interface 1.5.1
-
-Current WPF interface using demonstration profiles and simulated update versions.
-
-![Aligned component cards and magenta updates](assets/components-1.5.1.png)
-![Rewritten internal guide](assets/guide-1.5.1.png)
-
-[Guida italiana](docs/GUIDE-it.md) · [English guide](docs/GUIDE-en.md).
-The rewritten handbook is Italian/English; other UI languages currently use the English handbook.
-## Start and update
-
-Windows x64 and .NET Framework 4.8 are required. Download **HDLSS5-Portable-1.5.1.zip**, extract it into a writable folder and run **HDLSS5.exe**. Version 1.5 includes guided GPU-specific Neural Rendering installation, verified cache management and the reorganized interface. No Python or developer SDK is required.
-
-For an existing installation: close the app, extract the updated package into its folder, preserve `data`, `data-location.txt` and all backups, and remove the old `HDLSS.exe` from that application folder. Update any shortcuts to `HDLSS5.exe`. The name change does not require migrating your saved data. Do not run old and new copies together.
-
-Select a game, let the app detect its executable, then choose **OptiScaler**, **ReShade** or **DLL and Streamline**. Close the game before changing its files.
-
-## Compatibility
-
-Support depends on the game integration, GPU, driver, display and component. Replacing DLLs does not add features an application does not implement. Protected installations and anti-cheat may block modifications. Verify effects and performance in game. MFG Unlock requires compatible native Frame Generation and full add-on ReShade; it does not add native FG support. Community features may be experimental.
-
-The application does not prevent drivers or launchers from changing game files and does not automatically reapply saved files. Real-time game-text translation is not included.
-
-## Build
-
-```powershell
-New-Item -ItemType Directory -Force dist | Out-Null
-powershell -ExecutionPolicy Bypass -File ./src/build.ps1 -Output ./dist/HDLSS5.exe
+```
+src/Hdlss.Core     logica senza UI (testabile)
+  IO/              PathGuard, FileHash (cache), PeFile, IniDocument, Archives
+  Storage/         AppPaths, ContentStore (backup per hash), JsonFile
+  Transactions/    PlanBuilder, RemovalPlanner, TransactionEngine, Maintenance
+  Games/           GameLibrary (Steam + manuali), ExecutableDetector (exe, motore, API)
+  Hardware/        GpuInfo (nvidia-smi)
+  Net/             HttpService (ETag GitHub, cache, download verificati)
+  Components/      ReShade, RenoDX NR, Feeder, OptiScaler, Modello NR, Vulkan, regole NR
+  Legacy/          lettura e ripristino delle installazioni 1.x
+src/Hdlss.App      WPF: AppHost, ViewModels, Views, i18n (it/en)
+tests/             xUnit (motore, INI, percorsi, 1.x)
+bundled/           add-on RenoDX NR inclusi (verificati via SHA-256, non più dentro l'exe)
 ```
 
-## Support and credits
+## Cosa cambia rispetto alla 1.x
 
-Report app version, Windows version, GPU/driver, selected component and expected versus actual behavior. Remove private paths from logs before sharing; do not upload game files or backups.
+| 1.x | 2.0 |
+|---|---|
+| Ogni componente reimplementa Add/Prepare/Restore (35 varianti) | Un solo `PlanBuilder` + rimozione generica dal registro |
+| Backup e copia di recupero completi a ogni operazione (`dlss-recovery` ~20 GB) | Archivio per contenuto: ogni file salvato una volta; pulizia automatica |
+| INI ripristinati per intero o con codice ad hoc | Modifiche INI semantiche: si annulla solo ciò che l'app ha cambiato |
+| `catch {}` silenziosi | Errori tipizzati, tutto nel registro attività |
+| UI costruita nel code-behind, testi in 6 lingue inline | XAML + MVVM, stringhe in `i18n/*.json` |
+| `WebClient`, richieste GitHub non cache | `HttpClient` condiviso, ETag, copia locale offline |
+| DLL incluse come risorse nell'exe | File in `bundled/` verificati all'uso |
+| Marker json nella cartella del gioco | Stato in `data-v2/state`, cronologia annullabile |
 
-HDLSS5 is not affiliated with NVIDIA, Valve, Microsoft, ReShade, RenoDX or OptiScaler authors. Third-party components retain their authors’ terms. The portable package includes two GPU-specific NR 310.9.16.0 models and the 8.5-model/ShortFuse add-on choices; other component downloads are obtained separately. Public source availability alone does not grant a reuse license. Third-party trademarks and artwork belong to their owners.
+## Compilare e testare
 
-[Component sources](docs/SOURCES.txt) · [Optional donation](https://paypal.me/Ourze)
+```bash
+dotnet build HDLSS5.sln -c Release
+```
 
-### Antivirus report
-Windows Defender reported `Trojan:Win32/Bearfoos.A!ml` on an earlier renamed build and its unchanged rebuild. Version 1.5 has not received Microsoft clearance. The owner restored the file and functional checks passed. This does not independently establish a false positive. No antivirus exclusions or protection changes are included in HDLSS5.
+```bash
+dotnet test tests/Hdlss.Core.Tests
+```
+
+Pubblicazione portatile: `dotnet publish src/Hdlss.App -c Release -o out`, poi copiare `nr-packages` accanto a `HDLSS5.exe` (oppure indicare la cartella 1.x nelle Impostazioni).
+
+## Interfaccia
+
+- **Barra laterale**: Giochi, DLL, Avanzate, Guida, Impostazioni.
+- **Libreria a copertine** con lo stato di ogni gioco in una riga (NR attivo, da portare sulla 2.0, anti-cheat…), filtri e ricerca (Ctrl+F).
+- **Pagina del gioco**: una frase chiara su com'è messo il gioco e un solo pulsante principale (Attiva Neural Rendering / Porta sulla 2.0 / Ha funzionato?). Il percorso consigliato tiene conto di API e presenza di DLSS.
+- **Ha funzionato?** legge i log del gioco dopo la partita e risponde in italiano semplice.
+- **Modalità avanzata**: percorso a scelta, opzioni di ogni componente, anteprima file per file, installazioni 1.x, cronologia.
+- **Pagina DLL**: versioni DLSS (SR, FG, RR) e Streamline di ogni gioco contro le più recenti NVIDIA; per ogni gioco un menu sceglie la più recente, una versione precedente o «Originale del gioco»; «Porta tutti alle più recenti» aggiorna in un colpo.
+- Esc torna indietro, F5 riscansiona, registro attività in un cassetto in basso.
+
+## Componenti
+
+| Categoria | Componenti |
+|---|---|
+| Neural Rendering | ReShade, RenoDX NR, Feeder, OptiScaler (F5/Standard), Modello NR |
+| DLL del gioco | DLSS (SR/FG/RR) e Streamline alla versione più recente o scelta, con ripristino degli originali |
+| HDR | RenoDX HDR (catalogo o file importato), HDR Unreal (Engine.ini, profilo nativo o RenoDX) |
+| Generazione fotogrammi | MFG Unlock (RTX 4000) |
+| Shader ReShade | Lilium, CAS |
+| Loader per mod | UE4SS (+ lettore HDR in gioco), Ultimate ASI Loader, REFramework |
+
+Libreria: Steam, Xbox / Game Pass (anche eseguibili protetti, avvio via `shell:AppsFolder`) e giochi aggiunti a mano.
+
+## Installazioni 1.x
+
+- **Adotta**: la 2.0 prende in gestione l'installazione senza modificare i file del gioco (i backup 1.x entrano nell'archivio 2.0).
+- **Ripristina**: riporta i file allo stato originale con i backup della 1.x.
+
+## Non portato dalla 1.x
+
+Overlay/scorciatoia monitor e filtro HDR «PeakLimit» ritirato. Le loro installazioni 1.x restano ripristinabili.

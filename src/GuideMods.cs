@@ -1,1 +1,0 @@
-namespace HdrPilot { public static partial class Guide { } }
