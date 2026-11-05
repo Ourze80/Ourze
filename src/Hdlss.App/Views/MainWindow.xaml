@@ -99,7 +99,7 @@
                                 Visibility="{Binding HasBlockers, Converter={StaticResource Vis}}">
                             <TextBlock Text="{Binding BlockersText}" Foreground="#F0A6A0" FontSize="13" />
                         </Border>
-                        <Border Background="#33280F" CornerRadius="6" Padding="10,6" Margin="0,0,0,10"
+                        <Border Background="#0C2A33" CornerRadius="6" Padding="10,6" Margin="0,0,0,10"
                                 Visibility="{Binding IsUnavailable, Converter={StaticResource Vis}}">
                             <TextBlock Text="{Binding UnavailableText}" Foreground="{StaticResource Accent}" FontSize="13" TextWrapping="Wrap" />
                         </Border>
@@ -143,7 +143,7 @@
 
         <!-- ═════════════ Navigation rail ═════════════ -->
         <DockPanel Grid.RowSpan="3" Background="{StaticResource Panel}">
-            <Image DockPanel.Dock="Top" Source="/logo.png" Width="40" Height="40" Margin="12,16,12,20" RenderOptions.BitmapScalingMode="HighQuality"
+            <Image DockPanel.Dock="Top" Source="/logo.png" Width="34" Height="34" Margin="12,18,12,22" RenderOptions.BitmapScalingMode="HighQuality"
                    ToolTip="{Binding GpuText}" />
             <StackPanel DockPanel.Dock="Bottom" Margin="0,0,0,12">
                 <ToggleButton IsChecked="{Binding Advanced}" Cursor="Hand" Margin="6,2" Background="Transparent" BorderThickness="0"
@@ -311,7 +311,7 @@
                                 <RadioButton Style="{StaticResource PathCard}" GroupName="method" IsChecked="{Binding IsMethodReShade}">
                                     <StackPanel>
                                         <DockPanel>
-                                            <Border DockPanel.Dock="Right" Background="#33280F" CornerRadius="8" Padding="8,2"
+                                            <Border DockPanel.Dock="Right" Background="#0C2A33" CornerRadius="8" Padding="8,2"
                                                     Visibility="{Binding ReShadeRecommended, Converter={StaticResource Vis}}">
                                                 <TextBlock Text="Consigliato" FontSize="11" Foreground="{StaticResource Accent}" />
                                             </Border>
@@ -323,7 +323,7 @@
                                 <RadioButton Style="{StaticResource PathCard}" GroupName="method" IsChecked="{Binding IsMethodOpti}">
                                     <StackPanel>
                                         <DockPanel>
-                                            <Border DockPanel.Dock="Right" Background="#33280F" CornerRadius="8" Padding="8,2"
+                                            <Border DockPanel.Dock="Right" Background="#0C2A33" CornerRadius="8" Padding="8,2"
                                                     Visibility="{Binding OptiRecommended, Converter={StaticResource Vis}}">
                                                 <TextBlock Text="Consigliato" FontSize="11" Foreground="{StaticResource Accent}" />
                                             </Border>

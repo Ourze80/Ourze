@@ -103,6 +103,41 @@ public class DetectionTests
     }
 
     [Fact]
+    public void Dx12_games_that_import_only_d3d11_are_detected()
+    {
+        // Dragon's Dogma 2 (RE Engine): loads d3d12 at run time, imports d3d11 for video.
+        string[] dd2 = ["kernel32.dll", "d3d11.dll", "dxgi.dll", "amd_fidelityfx_loader_dx12.dll"];
+        Assert.Equal(GraphicsApi.DX12, ExecutableDetector.ClassifyApi(dd2, agility: true, out bool certain));
+        Assert.True(certain);
+        string[] dx11 = ["kernel32.dll", "d3d11.dll", "dxgi.dll"];
+        Assert.Equal(GraphicsApi.DX12, ExecutableDetector.ClassifyApi(dx11, agility: true, out certain));
+        Assert.False(certain);
+        Assert.Equal(GraphicsApi.DX11, ExecutableDetector.ClassifyApi(dx11, agility: false, out certain));
+        Assert.True(certain);
+        Assert.Equal(GraphicsApi.DX12, ExecutableDetector.ClassifyApi(["d3d12.dll"], agility: false, out certain));
+        Assert.True(certain);
+        Assert.Equal(GraphicsApi.Unknown, ExecutableDetector.ClassifyApi(["kernel32.dll"], agility: false, out _));
+    }
+
+    [Fact]
+    public void Absolute_addon_path_inside_the_game_folder_is_accepted()
+    {
+        var game = Path.Combine(Path.GetTempPath(), "hdlss-tests", Guid.NewGuid().ToString("N"), "CONTROL Resonant");
+        Directory.CreateDirectory(Path.Combine(game, "addons"));
+        try
+        {
+            Assert.Equal("", Hdlss.Core.Components.FolderScan.AddonFolderFor(game, ".\\"));
+            Assert.Equal("", Hdlss.Core.Components.FolderScan.AddonFolderFor(game, game + "\\"));    // ReShade's folder picker
+            Assert.Equal("", Hdlss.Core.Components.FolderScan.AddonFolderFor(game, game.ToUpperInvariant()));
+            Assert.Equal("addons", Hdlss.Core.Components.FolderScan.AddonFolderFor(game, game + "\\addons\\"));
+            Assert.Equal("addons", Hdlss.Core.Components.FolderScan.AddonFolderFor(game, ".\\addons"));
+            Assert.Equal("?", Hdlss.Core.Components.FolderScan.AddonFolderFor(game, "..\\elsewhere"));
+            Assert.Equal("?", Hdlss.Core.Components.FolderScan.AddonFolderFor(game, "C:\\ReShade\\Addons"));
+        }
+        finally { Directory.Delete(Path.GetDirectoryName(game)!, true); }
+    }
+
+    [Fact]
     public void Manual_root_expands_unreal_layout()
     {
         var root = Path.Combine(Path.GetTempPath(), "hdlss-tests", Guid.NewGuid().ToString("N"));

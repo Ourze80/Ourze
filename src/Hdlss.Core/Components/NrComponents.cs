@@ -56,9 +56,13 @@ public static class NrRules
     /// <summary>Path (relative to the game folder) where ReShade looks for add-ons.</summary>
     public static string AddonPath(GameContext ctx, string fileName)
     {
-        if (ctx.Scan.AddonFolder == "?") throw new BlockedException("AddonPath di ReShade punta fuori dalla cartella del gioco: impostalo a .\\ e riprova.");
+        if (ctx.Scan.AddonFolder == "?") throw new BlockedException(AddonPathOutside(ctx));
         return ctx.Scan.AddonFolder.Length == 0 ? fileName : ctx.Scan.AddonFolder + "/" + fileName;
     }
+
+    public static string AddonPathOutside(GameContext ctx) =>
+        $"AddonPath di ReShade punta fuori dalla cartella del gioco ({ctx.Scan.AddonPathValue}). "
+        + $"In {ctx.Scan.ReShadeConfig}, sezione [ADDON], imposta AddonPath=.\\ (oppure cancella la riga) e riprova.";
 }
 
 /// <summary>Only the NR model DLL, for loaders that bring their own NR pass (OptiScaler F5).</summary>

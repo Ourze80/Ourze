@@ -122,18 +122,32 @@ public static partial class ExecutableDetector
     {
         certain = false;
         if (!File.Exists(exe)) return GraphicsApi.Unknown;
-        var imports = PeFile.Read(exe).Imports;
-        bool dx12 = imports.Contains("d3d12.dll"), dx11 = imports.Contains("d3d11.dll"), vk = imports.Contains("vulkan-1.dll");
-        switch ((dx12, dx11, vk))
-        {
-            case (true, false, false): certain = true; return GraphicsApi.DX12;
-            case (false, true, false): certain = true; return GraphicsApi.DX11;
-            case (false, false, true): certain = true; return GraphicsApi.Vulkan;
-        }
         // The Agility SDK sits next to the binaries that load it: the mod folder when the game
         // starts from a launcher stub (Unreal: <Project>/Binaries/Win64).
         string[] folders = modFolder != null ? [Path.GetDirectoryName(exe)!, modFolder] : [Path.GetDirectoryName(exe)!];
         bool agility = folders.Any(f => File.Exists(Path.Combine(f, "D3D12Core.dll")) || File.Exists(Path.Combine(f, "D3D12", "D3D12Core.dll")));
+        return ClassifyApi(PeFile.Read(exe).Imports, agility, out certain);
+    }
+
+    internal static GraphicsApi ClassifyApi(IReadOnlyCollection<string> imports, bool agility, out bool certain)
+    {
+        certain = false;
+        bool dx12 = imports.Contains("d3d12.dll"), dx11 = imports.Contains("d3d11.dll"), vk = imports.Contains("vulkan-1.dll");
+        // Libraries that exist only for DirectX 12 (e.g. amd_fidelityfx_loader_dx12.dll): engines
+        // that load d3d12.dll at run time (RE Engine: Dragon's Dogma 2, Monster Hunter Wilds)
+        // import only d3d11.dll, for video decoding.
+        bool dx12Only = imports.Any(i => i.EndsWith("_dx12.dll", StringComparison.OrdinalIgnoreCase));
+        switch ((dx12 || dx12Only, dx11, vk))
+        {
+            case (true, false, false): certain = true; return GraphicsApi.DX12;
+            case (true, true, false) when dx12Only: certain = true; return GraphicsApi.DX12;
+            case (false, false, true): certain = true; return GraphicsApi.Vulkan;
+        }
+        if (dx11 && !dx12 && !vk)
+        {
+            if (agility) return GraphicsApi.DX12;           // ships the Agility SDK: loads d3d12 at run time
+            certain = true; return GraphicsApi.DX11;
+        }
         if (dx12 && !vk) return GraphicsApi.DX12;            // DX11 is often imported only for tooling/video
         if (agility && !vk) return GraphicsApi.DX12;
         if (vk && !dx12 && !dx11) return GraphicsApi.Vulkan;

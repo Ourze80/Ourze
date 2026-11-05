@@ -17,7 +17,7 @@ public static class ReShadeAddons
         else if (loaders.Count > 1) blockers.Add("Più copie di ReShade: risolvi il doppione prima.");
         else if (!loaders[0].StartsWith(Vulkan.Dir) && !ctx.Scan.ReShadeSupportsAddons)
             blockers.Add("La copia di ReShade non supporta gli add-on: reinstallala da HDLSS5.");
-        if (ctx.Scan.AddonFolder == "?") blockers.Add("AddonPath di ReShade punta fuori dalla cartella del gioco.");
+        if (ctx.Scan.AddonFolder == "?") blockers.Add(NrRules.AddonPathOutside(ctx));
     }
 
     public static string AddonTarget(GameContext ctx, string fileName) => NrRules.AddonPath(ctx, fileName);

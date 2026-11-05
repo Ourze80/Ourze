@@ -17,7 +17,28 @@ public sealed class FolderScan
     public string? AntiCheat { get; private set; }
     public bool HasNrModel { get; private set; }
     public string ReShadeConfig { get; private set; } = "ReShade.ini";
+    /// <summary>Add-on folder relative to the game folder: "" = the game folder, "?" = outside it.</summary>
     public string AddonFolder { get; private set; } = "";
+    /// <summary>AddonPath as written in ReShade.ini (for messages).</summary>
+    public string AddonPathValue { get; private set; } = "";
+
+    /// <summary>
+    /// ReShade's AddonPath relative to <paramref name="folder"/>. ReShade's own folder picker writes
+    /// absolute paths: those are accepted when they point at the game folder or inside it.
+    /// </summary>
+    internal static string AddonFolderFor(string folder, string value)
+    {
+        if (value is "" or "." or ".\\" or "./") return "";
+        try
+        {
+            var full = Path.GetFullPath(Path.IsPathRooted(value) ? value : Path.Combine(folder, value));
+            if (string.Equals(full.TrimEnd('\\', '/'), Path.GetFullPath(folder).TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase)) return "";
+            var rel = PathGuard.RelativeTo(folder, full);
+            PathGuard.Resolve(folder, rel);
+            return rel;
+        }
+        catch (Exception ex) when (ex is UnsafePathException or ArgumentException or NotSupportedException or IOException) { return "?"; }
+    }
 
     public static FolderScan Run(string folder, string gameRoot)
     {
@@ -43,17 +64,8 @@ public sealed class FolderScan
             if (!File.Exists(PathGuard.Resolve(folder, "ReShade.ini")) && File.Exists(PathGuard.Resolve(folder, custom))) s.ReShadeConfig = custom;
         }
         var addonPath = IniDocument.Load(PathGuard.Resolve(folder, s.ReShadeConfig)).Get("ADDON", "AddonPath");
-        var value = addonPath?.Trim() ?? "";
-        if (value is not ("" or "." or ".\\" or "./"))
-        {
-            if (Path.IsPathRooted(value)) s.AddonFolder = "?";
-            else
-            {
-                var rel = value.StartsWith(".\\") || value.StartsWith("./") ? value[2..] : value;
-                try { s.AddonFolder = PathGuard.Normalize(rel); PathGuard.Resolve(folder, s.AddonFolder); }
-                catch (UnsafePathException) { s.AddonFolder = "?"; }
-            }
-        }
+        s.AddonPathValue = addonPath?.Trim().Trim('"') ?? "";
+        s.AddonFolder = AddonFolderFor(folder, s.AddonPathValue);
         foreach (var dir in new[] { folder, s.AddonFolder is "" or "?" ? folder : PathGuard.Resolve(folder, s.AddonFolder) }.Distinct(StringComparer.OrdinalIgnoreCase))
             if (Directory.Exists(dir))
                 foreach (var file in Directory.EnumerateFiles(dir, "*.addon64"))
