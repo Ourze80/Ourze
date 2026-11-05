@@ -192,7 +192,7 @@ public sealed partial class DlssGameViewModel : ObservableObject
 
         var rows = dlss.GroupBy(f => (f.Label, f.Current))
             .Select(g => new DllRow(g.Key.Label, g.Key.Current?.ToString() ?? "?", g.First().Outdated ? g.First().Latest?.ToString() : null, g.Count()))
-            .ToList();
+            .OrderBy(r => KindOrder(r.Kind)).ToList();
         foreach (var group in streamline.GroupBy(f => f.Current))
             rows.Add(new DllRow("Streamline", group.Key?.ToString() ?? "?", latestSl != null && group.Key < latestSl ? latestSl.ToString() : null, group.Count()));
         Rows = rows;
@@ -210,6 +210,12 @@ public sealed partial class DlssGameViewModel : ObservableObject
         _initialStreamline = slManaged ? StreamlineChoices.FirstOrDefault(c => c.Value == "v" + currentSl) ?? StreamlineChoices[0] : StreamlineChoices[0];
         _selectedStreamline = _initialStreamline;
     }
+
+    /// <summary>Same row order in every game: Super Resolution, Frame Generation, Ray Reconstruction.</summary>
+    private static int KindOrder(string kind) =>
+        kind.Contains("Super", StringComparison.OrdinalIgnoreCase) ? 0
+        : kind.Contains("Frame", StringComparison.OrdinalIgnoreCase) ? 1
+        : kind.Contains("Ray", StringComparison.OrdinalIgnoreCase) ? 2 : 3;
 
     private static List<VersionChoice> Choices(IReadOnlyList<string> versions, string? current, bool managed)
     {
@@ -235,7 +241,7 @@ public sealed partial class DlssGameViewModel : ObservableObject
     public IReadOnlyList<VersionChoice> DlssChoices { get; }
     public IReadOnlyList<VersionChoice> StreamlineChoices { get; }
     public string StateText => Outdated ? "Aggiornamento disponibile" : "Aggiornate" + (Managed ? " · cambiate da HDLSS5" : "");
-    public string StateBrushKey => Outdated ? "Accent" : "Muted";
+    public string StateBrushKey => Outdated ? "Warn" : "Success";
     public System.Windows.Media.Brush StateBrush => (System.Windows.Media.Brush)System.Windows.Application.Current.Resources[StateBrushKey];
 
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasChanges))] [NotifyCanExecuteChangedFor(nameof(ApplyCommand))] private VersionChoice? _selectedDlss;

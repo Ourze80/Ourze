@@ -20,6 +20,7 @@ public sealed partial class OptiScalerComponent : ComponentBase
     public override IReadOnlyList<ComponentOption> Options =>
     [
         new("build", "Build", [("f5", "F5 · Janblade · NR Multipass"), ("official", "Standard · senza NR")], "f5"),
+        MenuKeys.Option(MenuKeys.OptiScalerDefault),
     ];
 
     [GeneratedRegex(@"^optiscaler-dlssnr-f5-v?[0-9]+(?:\.[0-9]+)*(?:-with-dlss-fg)?\.zip$", RegexOptions.IgnoreCase)] private static partial Regex F5Asset();
@@ -76,6 +77,10 @@ public sealed partial class OptiScalerComponent : ComponentBase
         var build = Option(options, "build");
         var f5 = build == "f5";
         var repo = f5 ? F5Repo : OfficialRepo;
+        var menuKey = Option(options, MenuKeys.OptionKey);
+        var key = MenuKeys.Parse(menuKey) ?? MenuKeys.OptiScalerKey(ctx);
+        if (ctx.Installed(ReShadeComponent.ComponentId) && ctx.Api != GraphicsApi.Vulkan && key == MenuKeys.ReShadeKey(ctx))
+            throw new BlockedException(MenuKeys.ConflictMessage(key));
         if (f5)
         {
             var nrBlock = new List<string>();
@@ -110,6 +115,7 @@ public sealed partial class OptiScalerComponent : ComponentBase
             var plan = ctx.NewPlan(this, $"{(f5 ? "F5" : "Standard")} · {release.Tag}");
             plan.Meta("build", build);
             plan.Meta("source", asset.Url);
+            plan.Meta(MenuKeys.OptionKey, menuKey);
             foreach (var file in Directory.EnumerateFiles(package, "*", SearchOption.AllDirectories))
             {
                 var rel = PathGuard.RelativeTo(package, file);
@@ -129,20 +135,29 @@ public sealed partial class OptiScalerComponent : ComponentBase
             // With ReShade managed here, OptiScaler becomes its loader (ReShade moves to ReShade64.dll right after).
             if (ctx.Installed(ReShadeComponent.ComponentId) && ctx.Api != GraphicsApi.Vulkan)
                 settings.Add(("Plugins", "LoadReshade", "true"));
+            var menuCode = MenuKeys.Parse(menuKey);
             if (!File.Exists(iniPath) || ownsIni)
             {
                 var doc = IniDocument.Load(File.Exists(iniPath) ? iniPath : packageIni);
                 foreach (var (s, k, v) in settings) doc.Set(s, k, v);
-                plan.AddBytes("OptiScaler.ini", doc.ToBytes(), keepIfModified: true);
+                // "Default" goes back to OptiScaler's own (auto = Insert) only if HDLSS5 changed the key
+                // before; otherwise a key picked in OptiScaler's menu stays.
+                if (menuCode != null) doc.Set("Menu", "ShortcutKey", MenuKeys.Hex(menuCode.Value));
+                else if (MenuKeys.Parse(managed?.Meta.GetValueOrDefault(MenuKeys.OptionKey, MenuKeys.Default) ?? MenuKeys.Default) != null)
+                    doc.Set("Menu", "ShortcutKey", "auto");
+                plan.AddBytes("OptiScaler.ini", doc.ToBytes(), keepIfModified: true, builtOnCurrent: File.Exists(iniPath));
             }
             else
+            {
                 foreach (var (s, k, v) in settings) plan.IniSet("OptiScaler.ini", s, k, v);
+                MenuKeys.Apply(plan, managed, "OptiScaler.ini", "Menu", "ShortcutKey", menuKey, MenuKeys.OptiScalerDefault, MenuKeys.Hex);
+            }
 
             if (f5)
             {
                 var modelOwner = ctx.State.OwnerOf("nvngx_dlssnr.dll");
                 if (modelOwner == null || modelOwner == Id) plan.AddFile("nvngx_dlssnr.dll", NrRules.ModelFile(ctx, out _));
-                plan.Note("Nel menu OptiScaler (Insert) configura Multipass e Optical F5Low. La conversione SDR→HDR non supporta DLSS-G.");
+                plan.Note($"Nel menu OptiScaler ({MenuKeys.NameOf(menuCode ?? MenuKeys.OptiScalerDefault)}) configura Multipass e Optical F5Low. La conversione SDR→HDR non supporta DLSS-G.");
             }
             plan.Note($"Proxy: {proxy}. Riavvia il gioco e verifica OptiScaler.log.");
             return plan.Build();
