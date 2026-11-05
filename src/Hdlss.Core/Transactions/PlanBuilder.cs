@@ -63,10 +63,14 @@ public sealed class PlanBuilder
     public void AddFile(string relative, string sourceFile, bool keepIfModified = false) =>
         Add(PathGuard.Normalize(relative), _store.Put(sourceFile), keepIfModified);
 
-    public void AddBytes(string relative, byte[] data, bool keepIfModified = false) =>
-        Add(PathGuard.Normalize(relative), _store.Put(data), keepIfModified);
+    /// <param name="builtOnCurrent">
+    /// The data was built from the file as it is now (user changes included): write it even when the
+    /// user modified the file, instead of keeping it untouched.
+    /// </param>
+    public void AddBytes(string relative, byte[] data, bool keepIfModified = false, bool builtOnCurrent = false) =>
+        Add(PathGuard.Normalize(relative), _store.Put(data), keepIfModified, builtOnCurrent);
 
-    private void Add(string relative, string hash, bool keepIfModified)
+    private void Add(string relative, string hash, bool keepIfModified, bool builtOnCurrent = false)
     {
         if (_ini.ContainsKey(relative)) throw new InvalidOperationException($"{relative} è già modificato come configurazione.");
         Want(relative);
@@ -88,6 +92,7 @@ public sealed class PlanBuilder
                 newOriginal = true;
                 Note($"{relative}: sostituito dal gioco o da un altro programma dopo l'ultima modifica; questa versione diventa il nuovo originale da ripristinare.");
             }
+            else if (keepIfModified && builtOnCurrent) { Note($"{relative}: le tue modifiche restano, cambiate solo le impostazioni di HDLSS5."); }
             else if (keepIfModified) { Note($"{relative}: modificato dall'utente, conservato."); return; }
             else throw new BlockedException($"{relative} è stato modificato da un'altra app dopo l'installazione. Rimuovi il componente o verifica i file del gioco.");
         }

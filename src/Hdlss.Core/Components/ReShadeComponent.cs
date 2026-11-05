@@ -16,6 +16,7 @@ public sealed partial class ReShadeComponent : ComponentBase
     public override string Id => ComponentId;
     public override string Name => "ReShade (add-on)";
     public override string Description => "Caricatore per gli add-on RenoDX NR e Feeder. Versione stabile ufficiale con supporto completo agli add-on.";
+    public override IReadOnlyList<ComponentOption> Options => [MenuKeys.Option(MenuKeys.ReShadeDefault)];
 
     [GeneratedRegex(@"ReShade_Setup_(\d+\.\d+\.\d+)_Addon\.exe")] private static partial Regex SetupName();
 
@@ -51,7 +52,7 @@ public sealed partial class ReShadeComponent : ComponentBase
             var dll = Path.Combine(temp, "ReShade64.dll");
             if (!FolderScan.IsReShade(dll) || !PeFile.ContainsAscii(dll, "ReShadeRegisterAddon"))
                 throw new HdlssException("La DLL estratta non è ReShade x64 con supporto add-on.");
-            return PlanFor(ctx, dll, version, url);
+            return PlanFor(ctx, dll, version, url, Option(options, MenuKeys.OptionKey));
         }
         finally
         {
@@ -79,7 +80,7 @@ public sealed partial class ReShadeComponent : ComponentBase
         var loader = record.Files.FirstOrDefault(f => f.Path.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
                      ?? throw new HdlssException("Registro di ReShade senza DLL.");
         var dll = ctx.Services.Store.Open(loader.After);
-        return PlanFor(ctx, dll, record.Version, record.Meta.GetValueOrDefault("source", ""));
+        return PlanFor(ctx, dll, record.Version, record.Meta.GetValueOrDefault("source", ""), record.Meta.GetValueOrDefault(MenuKeys.OptionKey, MenuKeys.Default));
     }
 
     /// <summary>The loader file ReShade should use in this folder.</summary>
@@ -88,13 +89,18 @@ public sealed partial class ReShadeComponent : ComponentBase
         : ctx.Scan.OptiScalerProxy != null ? "ReShade64.dll"
         : currentManaged != null && FolderScan.ProxyNames.Contains(currentManaged, StringComparer.OrdinalIgnoreCase) ? currentManaged : "dxgi.dll";
 
-    private ChangePlan PlanFor(GameContext ctx, string dll, string version, string url)
+    private ChangePlan PlanFor(GameContext ctx, string dll, string version, string url, string menuKey)
     {
         {
             if (ctx.Api != GraphicsApi.Vulkan && ctx.Scan.OptiScalerProxies.Count > 1)
                 throw new BlockedException("Più copie di OptiScaler nella cartella: sistema prima OptiScaler.");
+            var key = MenuKeys.Parse(menuKey) ?? MenuKeys.ReShadeKey(ctx);
+            if (ctx.Api != GraphicsApi.Vulkan && ctx.Scan.OptiScalerProxy != null && key == MenuKeys.OptiScalerKey(ctx))
+                throw new BlockedException(MenuKeys.ConflictMessage(key));
             var plan = ctx.NewPlan(this, version);
             if (url.Length > 0) plan.Meta("source", url);
+            plan.Meta(MenuKeys.OptionKey, menuKey);
+            MenuKeys.Apply(plan, ctx.State.Get(Id), ctx.Scan.ReShadeConfig, "INPUT", "KeyOverlay", menuKey, MenuKeys.ReShadeDefault, MenuKeys.ReShadeFormat);
             if (ctx.Api == GraphicsApi.Vulkan)
             {
                 plan.AddFile(Vulkan.ReShadeDll, dll);

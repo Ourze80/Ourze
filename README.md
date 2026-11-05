@@ -1,4 +1,7 @@
-<img src="assets/brand-logo.png" alt="HDLSS5" height="64">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/brand-logo.png">
+  <img src="assets/brand-logo-light.png" alt="HDLSS5" height="64">
+</picture>
 
 # HDLSS5 2.0
 
@@ -24,8 +27,8 @@ HDLSS5 finds the games installed on your PC, works out how each one is built (en
 
 | Tab | Contents |
 |---|---|
-| **ReShade** | ReShade, RenoDX NR (Lecram 10.8 or ShortFuse), Feeder, RenoDX HDR mods, MFG Unlock (RTX 4000), Lilium and CAS shaders |
-| **OptiScaler** | OptiScaler Standard and F5, with ReShade loaded by OptiScaler without conflicts |
+| **ReShade** | ReShade (with a choice of menu key), RenoDX NR (Lecram 10.8 or ShortFuse), Feeder, RenoDX HDR mods, MFG Unlock (RTX 4000), Lilium and CAS shaders |
+| **OptiScaler** | OptiScaler Standard and F5 (with a choice of menu key), with ReShade loaded by OptiScaler without conflicts |
 | **DLL** | NR model 310.9.16.0 for RTX 4000/5000, DLSS (Super Resolution, Frame Generation, Ray Reconstruction) and Streamline |
 | **Other** | Unreal HDR (Engine.ini), UE4SS with in-game HDR reader, Ultimate ASI Loader, REFramework |
 
@@ -43,7 +46,7 @@ Every NVIDIA DLL in your games at a glance, compared with the latest releases. F
 
 ## Installation
 
-1. Download `HDLSS5-Portable-2.0.0.zip` from the [latest release](https://github.com/giorgiobascialla-hub/Ourze/releases/latest).
+1. Download the `HDLSS5-Portable` zip from the [latest release](https://github.com/giorgiobascialla-hub/Ourze/releases/latest).
 2. Extract it to a writable folder (not "Program Files") and run `HDLSS5.exe`.
 3. Always close the game before installing or removing anything.
 
