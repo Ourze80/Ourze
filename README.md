@@ -2,73 +2,73 @@
 
 # HDLSS5 2.0
 
-**DLSS 5 Neural Rendering, DLSS aggiornato e HDR nei tuoi giochi PC, con un clic e sempre annullabile.**
+**DLSS 5 Neural Rendering, up-to-date DLSS and HDR in your PC games — one click, always reversible.**
 
-HDLSS5 trova i giochi installati sul PC, capisce come sono fatti (motore, API grafica, DLSS presente, anti-cheat) e installa le mod giuste nel posto giusto: ReShade con RenoDX NR, OptiScaler, il modello NR adatto alla tua GPU, le DLL DLSS e Streamline più recenti, mod HDR e loader. Ogni file sostituito viene salvato prima, quindi puoi sempre tornare indietro.
+HDLSS5 finds the games installed on your PC, works out how each one is built (engine, graphics API, DLSS, anti-cheat) and installs the right mods in the right place: ReShade with RenoDX NR, OptiScaler, the NR model for your GPU, the latest DLSS and Streamline DLLs, HDR mods and mod loaders. Every file it replaces is saved first, so you can always go back.
 
-**[⬇ Scarica HDLSS5 2.0](https://github.com/giorgiobascialla-hub/Ourze/releases/latest)**
+**[⬇ Download HDLSS5 2.0](https://github.com/giorgiobascialla-hub/Ourze/releases/latest)**
 
-![Libreria dei giochi](assets/screenshot-library.png)
+![Game library](assets/screenshot-library.png)
 
-## Cosa fa
+## What it does
 
-- **Libreria automatica**: trova i giochi Steam e Xbox / Game Pass; gli altri si aggiungono a mano. Ogni copertina dice in una riga com'è messo il gioco (Neural Rendering attivo, mod da importare, da configurare…).
-- **Un pulsante per partire**: la pagina del gioco spiega la situazione in italiano semplice e propone una sola azione principale, ad es. «Attiva Neural Rendering».
-- **«Ha funzionato?»**: dopo qualche minuto di gioco legge i log e ti dice se il Neural Rendering è partito davvero.
-- **Sempre annullabile**: ogni modifica finisce nella cronologia; «Rimuovi» rimette i file originali del gioco.
-- **Stato chiaro**: «Installa» solo se manca, «Aggiorna» solo se c'è davvero una versione più recente; se per un gioco una mod non esiste, l'app lo dice.
+- **Automatic library**: finds Steam and Xbox / Game Pass games; others can be added manually. Each cover shows the game's status in one line (Neural Rendering active, mods to import, ready to configure…).
+- **One button to start**: the game page explains the situation in plain language and offers a single main action, such as "Enable Neural Rendering".
+- **"Did it work?"**: after a few minutes of play, it reads the game logs and tells you whether Neural Rendering actually started.
+- **Always reversible**: every change goes into the history; "Remove" puts the game's original files back.
+- **Clear status**: "Install" only when something is missing, "Update" only when a newer version really exists. If a mod doesn't exist for a game, the app says so.
 
-![Pagina del gioco](assets/screenshot-game.png)
+![Game page](assets/screenshot-game.png)
 
-## Componenti
+## Components
 
-| Scheda | Cosa contiene |
+| Tab | Contents |
 |---|---|
-| **ReShade** | ReShade, RenoDX NR (Lecram 10.8 o ShortFuse), Feeder, mod HDR RenoDX, MFG Unlock (RTX 4000), shader Lilium e CAS |
-| **OptiScaler** | OptiScaler Standard e F5, con ReShade caricato da OptiScaler senza conflitti |
-| **DLL** | Modello NR 310.9.16.0 per RTX 4000/5000, DLSS (Super Resolution, Frame Generation, Ray Reconstruction) e Streamline |
-| **Altro** | HDR Unreal (Engine.ini), UE4SS con lettore HDR, Ultimate ASI Loader, REFramework |
+| **ReShade** | ReShade, RenoDX NR (Lecram 10.8 or ShortFuse), Feeder, RenoDX HDR mods, MFG Unlock (RTX 4000), Lilium and CAS shaders |
+| **OptiScaler** | OptiScaler Standard and F5, with ReShade loaded by OptiScaler without conflicts |
+| **DLL** | NR model 310.9.16.0 for RTX 4000/5000, DLSS (Super Resolution, Frame Generation, Ray Reconstruction) and Streamline |
+| **Other** | Unreal HDR (Engine.ini), UE4SS with in-game HDR reader, Ultimate ASI Loader, REFramework |
 
-## Pagina DLL
+## DLL page
 
-Tutte le DLL NVIDIA dei tuoi giochi in un colpo d'occhio, confrontate con le più recenti. Per ogni gioco scegli la versione più recente, una precedente o «Originale del gioco».
+Every NVIDIA DLL in your games at a glance, compared with the latest releases. For each game, pick the latest version, an earlier one, or the game's original.
 
-![Pagina DLL](assets/screenshot-dll.png)
+![DLL page](assets/screenshot-dll.png)
 
-## Requisiti
+## Requirements
 
-- Windows 10/11 a 64 bit, nessun runtime da installare.
-- GPU NVIDIA RTX; per il Neural Rendering RTX 4000 o RTX 5000 con driver aggiornato.
-- Interfaccia in italiano.
+- Windows 10/11 64-bit, no runtime to install.
+- NVIDIA RTX GPU; Neural Rendering needs an RTX 4000 or RTX 5000 with an up-to-date driver.
+- The interface is currently in Italian.
 
-## Installazione
+## Installation
 
-1. Scarica `HDLSS5-Portable-2.0.0.zip` dall'[ultima release](https://github.com/giorgiobascialla-hub/Ourze/releases/latest).
-2. Estrailo in una cartella scrivibile (non in «Programmi») e avvia `HDLSS5.exe`.
-3. Chiudi sempre il gioco prima di installare o rimuovere qualcosa.
+1. Download `HDLSS5-Portable-2.0.0.zip` from the [latest release](https://github.com/giorgiobascialla-hub/Ourze/releases/latest).
+2. Extract it to a writable folder (not "Program Files") and run `HDLSS5.exe`.
+3. Always close the game before installing or removing anything.
 
-L'app non è firmata digitalmente: Windows SmartScreen può chiedere conferma al primo avvio («Ulteriori informazioni» › «Esegui comunque»). Puoi verificare lo zip con il file `.sha256` della release.
+The app is not digitally signed, so Windows SmartScreen may ask for confirmation on first launch ("More info" › "Run anyway"). You can verify the zip with the `.sha256` file attached to the release.
 
-**Arrivi dalla 1.x?** La 2.0 riconosce le installazioni fatte con HDLSS5 1.x e può prenderle in gestione senza toccare i file del gioco, oppure ripristinare gli originali con i backup della 1.x. La 1.5.1 resta tra le [release precedenti](https://github.com/giorgiobascialla-hub/Ourze/releases).
+**Coming from 1.x?** Version 2.0 recognizes installations made with HDLSS5 1.x and can take them over without touching the game files, or restore the originals from the 1.x backups. Version 1.5.1 is still available among the [previous releases](https://github.com/giorgiobascialla-hub/Ourze/releases).
 
-Nei giochi con anti-cheat (EasyAntiCheat, BattlEye) l'installazione è bloccata. HDLSS5 è un progetto indipendente, non affiliato a NVIDIA; i componenti vengono scaricati dai repository ufficiali dei rispettivi autori e verificati.
+Installation is blocked in games with anti-cheat (EasyAntiCheat, BattlEye). HDLSS5 is an independent project, not affiliated with NVIDIA; components are downloaded from their authors' official repositories and verified.
 
-## Per sviluppatori
+## For developers
 
-Riscrittura da zero della 1.5 in **.NET 8 + WPF (MVVM)**.
+A from-scratch rewrite of 1.5 in **.NET 8 + WPF (MVVM)**.
 
 ```
-src/Hdlss.Core     logica senza UI (testabile)
+src/Hdlss.Core     UI-free logic (testable)
   IO/              PathGuard, FileHash, PeFile, IniDocument, Archives
-  Storage/         AppPaths, ContentStore (backup per contenuto), JsonFile
+  Storage/         AppPaths, ContentStore (content-addressed backups), JsonFile
   Transactions/    PlanBuilder, RemovalPlanner, TransactionEngine
-  Games/           GameLibrary (Steam, Xbox, manuali), ExecutableDetector
-  Net/             HttpService (cache ETag, download verificati)
-  Components/      ReShade, RenoDX, OptiScaler, modello NR, DLL, HDR, loader
-  Legacy/          lettura e ripristino delle installazioni 1.x
+  Games/           GameLibrary (Steam, Xbox, manual), ExecutableDetector
+  Net/             HttpService (ETag cache, verified downloads)
+  Components/      ReShade, RenoDX, OptiScaler, NR model, DLLs, HDR, loaders
+  Legacy/          reading and restoring 1.x installations
 src/Hdlss.App      WPF: AppHost, ViewModels, Views
 tests/             xUnit
-bundled/           add-on RenoDX NR inclusi (verificati via SHA-256)
+bundled/           bundled RenoDX NR add-ons (verified by SHA-256)
 ```
 
 ```bash
@@ -79,4 +79,4 @@ dotnet build HDLSS5.sln -c Release
 dotnet test tests/Hdlss.Core.Tests
 ```
 
-Pacchetto portatile completo (con i modelli NR): `.\build-portable.ps1`.
+Full portable package (including the NR models): `.\build-portable.ps1`.
