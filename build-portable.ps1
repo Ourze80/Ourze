@@ -3,7 +3,7 @@
     dist\HDLSS5-Portable-<version>\HDLSS5.exe   self-contained, no .NET install needed
                                   \bundled\      RenoDX NR add-ons + UE4SS reader (hash-checked at use)
                                   \nr-packages\  NR 310.9.16.0 models (RTX 4000 / RTX 5000)
-                                  \LEGGIMI.txt
+                                  \README.txt
     dist\HDLSS5-Portable-<version>.zip
   Usage:  .\build-portable.ps1 [-NrPackages <folder>] [-NoZip] [-SkipTests]
 #>
@@ -59,7 +59,7 @@ foreach ($m in $models.Keys) {
     Copy-Item (Join-Path $NrPackages $m) $dest
 }
 
-Copy-Item (Join-Path $PSScriptRoot 'LEGGIMI.txt') $out
+Copy-Item (Join-Path $PSScriptRoot 'README.txt') $out
 foreach ($required in 'HDLSS5.exe', 'bundled\renodx-dlss5-lecram-10.8.addon64', 'bundled\renodx-dlss5-shortfuse.addon64', 'bundled\hdlss-telemetry.lua') {
     if (-not (Test-Path (Join-Path $out $required))) { throw "Manca nel pacchetto: $required" }
 }
