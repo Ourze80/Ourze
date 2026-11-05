@@ -118,7 +118,7 @@ public static partial class ExecutableDetector
     /// several or none, falls back to folder evidence (DirectX 12 Agility SDK, Vulkan-only
     /// runtimes) and reports <paramref name="certain"/> = false.
     /// </summary>
-    public static GraphicsApi DetectApi(string exe, out bool certain)
+    public static GraphicsApi DetectApi(string exe, out bool certain, string? modFolder = null)
     {
         certain = false;
         if (!File.Exists(exe)) return GraphicsApi.Unknown;
@@ -130,8 +130,10 @@ public static partial class ExecutableDetector
             case (false, true, false): certain = true; return GraphicsApi.DX11;
             case (false, false, true): certain = true; return GraphicsApi.Vulkan;
         }
-        var folder = Path.GetDirectoryName(exe)!;
-        bool agility = File.Exists(Path.Combine(folder, "D3D12Core.dll")) || File.Exists(Path.Combine(folder, "D3D12", "D3D12Core.dll"));
+        // The Agility SDK sits next to the binaries that load it: the mod folder when the game
+        // starts from a launcher stub (Unreal: <Project>/Binaries/Win64).
+        string[] folders = modFolder != null ? [Path.GetDirectoryName(exe)!, modFolder] : [Path.GetDirectoryName(exe)!];
+        bool agility = folders.Any(f => File.Exists(Path.Combine(f, "D3D12Core.dll")) || File.Exists(Path.Combine(f, "D3D12", "D3D12Core.dll")));
         if (dx12 && !vk) return GraphicsApi.DX12;            // DX11 is often imported only for tooling/video
         if (agility && !vk) return GraphicsApi.DX12;
         if (vk && !dx12 && !dx11) return GraphicsApi.Vulkan;

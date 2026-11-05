@@ -84,26 +84,34 @@ public sealed partial class GameLibrary(AppSettings settings, Log log)
     }
 
     /// <summary>Resolves the executable (saved choice → auto-detection) lazily, since it is slow.</summary>
+    /// <summary>
+    /// True when HDLSS already manages something in that folder. Set by the app: an automatic mod
+    /// folder must never hide components installed in the executable's folder.
+    /// </summary>
+    public Func<string, bool>? HasManagedState { get; set; }
+
     public void Resolve(Game game)
     {
-        if (game.HasExe && game.Store == GameStore.Manual) { DetectEngine(game); return; }
-        if (game.ProtectedReason != null) return; // WindowsApps: not readable, nothing to resolve
         var profile = settings.Profile(game.Id);
+        if (game.HasExe && game.Store == GameStore.Manual) { ResolveModFolder(game, profile); DetectEngine(game); return; }
+        if (game.ProtectedReason != null) return; // WindowsApps: not readable, nothing to resolve
+        Func<string, bool> accept = f => PeFile.IsPe64(f) || XboxLibrary.IsDeclaredX64(game, f);
         if (!string.IsNullOrEmpty(profile.Target))
         {
             try
             {
                 var full = PathGuard.Resolve(game.Root, profile.Target);
-                if (ExecutableDetector.IsServiceExecutable(full))
-                    game.Warnings.Add($"L'eseguibile salvato ({Path.GetFileName(full)}) è uno strumento, non il gioco: scelto automaticamente.");
-                else if (File.Exists(full) && (PeFile.IsPe64(full) || XboxLibrary.IsDeclaredX64(game, full))) game.Exe = full;
+                if (File.Exists(full) && accept(full))
+                {
+                    game.Exe = full;
+                    MigrateToolTarget(game, profile, accept);
+                }
                 else game.Warnings.Add("L'eseguibile salvato non esiste più: scelto automaticamente.");
             }
             catch (UnsafePathException ex) { game.Warnings.Add(ex.Message); }
         }
         if (!game.HasExe)
         {
-            Func<string, bool> accept = f => PeFile.IsPe64(f) || XboxLibrary.IsDeclaredX64(game, f);
             var (exe, certain) = ExecutableDetector.Pick(game.Root, accept);
             game.Exe = exe;
             if (exe.Length == 0) game.Warnings.Add("Nessun eseguibile x64 trovato: sceglilo manualmente.");
@@ -116,21 +124,46 @@ public sealed partial class GameLibrary(AppSettings settings, Log log)
         }
     }
 
+    /// <summary>
+    /// 1.x/early 2.0 workaround: a helper tool (e.g. 8za_v2.exe) picked only because it sits in the
+    /// folder the game loads DLLs from. When the real game exe resolves to that same mod folder,
+    /// switch to it silently: same folder, same managed state, working launch. Otherwise the user's
+    /// choice is kept as is.
+    /// </summary>
+    private void MigrateToolTarget(Game game, GameProfile profile, Func<string, bool> accept)
+    {
+        if (!ExecutableDetector.IsServiceExecutable(game.Exe)) return;
+        var (pick, _) = ExecutableDetector.Pick(game.Root, accept);
+        if (pick.Length == 0 || string.Equals(pick, game.Exe, StringComparison.OrdinalIgnoreCase)) return;
+        var toolFolder = Path.GetDirectoryName(game.Exe)!;
+        var pickFolder = ExecutableDetector.ModFolderFor(game.Root, pick) ?? Path.GetDirectoryName(pick)!;
+        if (!string.Equals(Path.GetFullPath(pickFolder), Path.GetFullPath(toolFolder), StringComparison.OrdinalIgnoreCase)) return;
+        log.Info($"{game.Name}: eseguibile {Path.GetFileName(game.Exe)} (strumento) sostituito da {Path.GetFileName(pick)}, stessa cartella delle mod.");
+        game.Exe = pick;
+        profile.Target = PathGuard.RelativeTo(game.Root, pick);
+    }
+
     /// <summary>Saved mod folder (relative to Root) → Unreal Binaries\Win64 detection → exe folder.</summary>
-    private static void ResolveModFolder(Game game, GameProfile profile)
+    private void ResolveModFolder(Game game, GameProfile profile)
     {
         game.ModFolder = null; game.ModFolderAuto = false;
         if (!string.IsNullOrEmpty(profile.ModFolder))
         {
             try
             {
-                var full = PathGuard.Resolve(game.Root, profile.ModFolder);
+                var full = profile.ModFolder == "." ? Path.GetFullPath(game.Root) : PathGuard.Resolve(game.Root, profile.ModFolder);
                 if (Directory.Exists(full)) { game.ModFolder = full; return; }
                 game.Warnings.Add("La cartella delle mod salvata non esiste più: scelta automaticamente.");
             }
             catch (UnsafePathException ex) { game.Warnings.Add(ex.Message); }
         }
-        if (ExecutableDetector.ModFolderFor(game.Root, game.Exe) is { } auto) { game.ModFolder = auto; game.ModFolderAuto = true; }
+        if (ExecutableDetector.ModFolderFor(game.Root, game.Exe) is not { } auto) return;
+        if (HasManagedState?.Invoke(game.ExeFolder) == true)
+        {
+            game.Warnings.Add($"Il gioco carica le DLL da {PathGuard.RelativeTo(game.Root, auto)}, ma HDLSS5 gestisce già componenti nella cartella dell'eseguibile: rimuovili e scegli la cartella delle mod in «Eseguibile».");
+            return;
+        }
+        game.ModFolder = auto; game.ModFolderAuto = true;
     }
 
     private static void DetectEngine(Game game)

@@ -21,6 +21,12 @@ public static class RemovalPlanner
             if (!FileHash.Equal(current, f.After) && !OnlyEditedByOthers(state, record.Id, f, full))
             {
                 if (f.KeepIfModified) { plan.Notes.Add($"{f.Path}: modificato dall'utente, conservato."); continue; }
+                if (current != null && record.Meta.ContainsKey(PlanBuilder.AdoptGameChangesMeta))
+                {
+                    // The game's own DLL, replaced by a game update: that is already the game's file.
+                    plan.Notes.Add($"{f.Path}: sostituito dal gioco dopo l'ultima modifica, lasciato così com'è.");
+                    continue;
+                }
                 if (!force)
                     throw new BlockedException($"{f.Path} è stato modificato da un'altra app dopo l'installazione. " +
                         "Usa «Rimuovi comunque» per lasciarlo così com'è e rimuovere il resto.");

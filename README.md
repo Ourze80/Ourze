@@ -1,9 +1,17 @@
 <img src="assets/brand-logo.png" alt="HDLSS5" height="64">
 
-# HDLSS5 2.0 · anteprima
+# HDLSS5 2.0
 
-> **Versione di anteprima.** La versione stabile resta la [1.5.1 sul ramo `main`](https://github.com/giorgiobascialla-hub/Ourze/tree/main).
-> La 2.0 si scarica dalla pre-release [v2.0.0-preview](https://github.com/giorgiobascialla-hub/Ourze/releases): estrai lo zip in una cartella scrivibile e avvia `HDLSS5.exe` (Windows x64, nessun runtime da installare). Interfaccia per ora solo in italiano.
+Gestore di mod grafiche per giochi PC su GPU NVIDIA RTX: Neural Rendering (ReShade, RenoDX NR, OptiScaler), DLSS e Streamline alla versione più recente, HDR, generazione fotogrammi e loader per mod. Ogni modifica è registrata e si annulla con un clic.
+
+## Download
+
+Scarica `HDLSS5-Portable-2.0.0.zip` dall'[ultima release](https://github.com/giorgiobascialla-hub/Ourze/releases/latest), estrailo in una cartella scrivibile e avvia `HDLSS5.exe`.
+
+- Windows 10/11 x64, nessun runtime da installare.
+- Interfaccia in italiano.
+- Verifica dell'archivio: confronta lo SHA-256 con il file `.sha256` della release.
+- La versione 1.5.1 resta disponibile tra le [release precedenti](https://github.com/giorgiobascialla-hub/Ourze/releases); la 2.0 riconosce le sue installazioni e può adottarle o ripristinarle.
 
 Riscrittura da zero di HDLSS5 1.5 in **.NET 8 + WPF (MVVM)**. Stessi percorsi Neural Rendering, architettura nuova.
 

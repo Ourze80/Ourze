@@ -49,6 +49,8 @@ public sealed partial class RenoDxHdrComponent : ComponentBase, ILocalImport
         if (foreign.Count > 0) blockers.Add($"Altro add-on RenoDX HDR presente: {string.Join(", ", foreign)}.");
     }
 
+    public override bool ChecksAvailability => true;
+
     /// <summary>Looks the game up in the catalog: the reason when there is no direct download for it.</summary>
     public override async Task<string?> UnavailableReasonAsync(GameContext ctx, CancellationToken cancel)
     {

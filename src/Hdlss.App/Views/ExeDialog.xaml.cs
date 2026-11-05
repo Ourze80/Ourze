@@ -30,8 +30,11 @@ public partial class ExeDialog : Window
         var current = game.HasExe ? PathGuard.RelativeTo(game.Root, game.Exe) : null;
         if (current != null) Add(current);
         // Recommended first, then the rest by size (the game is almost always the biggest).
-        _choices.Sort((a, b) => (b.Rel == _recommended).CompareTo(a.Rel == _recommended) is var c and not 0 ? c
-            : Size(b.Rel).CompareTo(Size(a.Rel)));
+        var sizes = _choices.ToDictionary(c => c, c => Size(c.Rel));
+        var ordered = _choices.OrderByDescending(c => string.Equals(c.Rel, _recommended, StringComparison.OrdinalIgnoreCase))
+                              .ThenByDescending(c => sizes[c]).ToList();
+        _choices.Clear();
+        _choices.AddRange(ordered);
         Targets.ItemsSource = _choices;
         Targets.SelectedItem = _choices.FirstOrDefault(c => c.Rel.Equals(current ?? _recommended, StringComparison.OrdinalIgnoreCase));
 
@@ -40,7 +43,7 @@ public partial class ExeDialog : Window
         ModFolder.Text = saved ?? "";
         UpdateModHint();
 
-        var detected = game.HasExe ? ExecutableDetector.DetectApi(game.Exe) : GraphicsApi.Unknown;
+        var detected = game.HasExe ? ExecutableDetector.DetectApi(game.Exe, out _, game.ModFolder) : GraphicsApi.Unknown;
         ApiAuto.Content = $"{Loc.T("exe.auto")} ({(detected == GraphicsApi.Unknown ? "non riconosciuta" : detected.ToString())})";
         var chosen = host.Settings.Profile(game.Id).ApiOverride;
         (chosen switch { GraphicsApi.DX11 => ApiDx11, GraphicsApi.DX12 => ApiDx12, GraphicsApi.Vulkan => ApiVulkan, _ => ApiAuto }).IsChecked = true;
@@ -93,10 +96,15 @@ public partial class ExeDialog : Window
 
     private void BrowseMod_Click(object sender, RoutedEventArgs e)
     {
-        var folder = Dialogs.PickFolder(ModFolder.Text.Length > 0 ? Path.Combine(_game.Root, ModFolder.Text) : _game.Root);
+        var folder = Dialogs.PickFolder(ModFolder.Text.Length > 0 && ModFolder.Text != "." ? Path.Combine(_game.Root, ModFolder.Text) : _game.Root);
         if (folder == null) return;
+        if (string.Equals(Path.GetFullPath(folder).TrimEnd('\\'), Path.GetFullPath(_game.Root).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
+        {
+            ModFolder.Text = ".";
+            return;
+        }
         try { ModFolder.Text = PathGuard.RelativeTo(_game.Root, folder); }
-        catch (Exception ex) when (ex is HdlssException or UnsafePathException) { ErrorText.Text = "La cartella delle mod deve stare dentro la cartella del gioco."; }
+        catch (HdlssException) { ErrorText.Text = "La cartella delle mod deve stare dentro la cartella del gioco."; }
     }
 
     private void BrowseConfig_Click(object sender, RoutedEventArgs e)
@@ -132,12 +140,15 @@ public partial class ExeDialog : Window
                 var full = PathGuard.Resolve(_game.Root, choice.Rel);
                 if (!File.Exists(full) || (!PeFile.IsPe64(full) && !XboxLibrary.IsDeclaredX64(_game, full))) throw new HdlssException("Eseguibile x64 non valido.");
                 profile.Target = choice.Rel;
-
-                if (ModAuto.IsChecked == true) profile.ModFolder = null;
+            }
+            if (ModAuto.IsChecked == true) profile.ModFolder = null;
+            else
+            {
+                var rel = ModFolder.Text.Trim().TrimEnd('\\', '/');
+                if (rel.Length == 0) throw new HdlssException("Indica la cartella delle mod o scegli «Automatica».");
+                if (rel == ".") profile.ModFolder = "."; // the game's root folder
                 else
                 {
-                    var rel = ModFolder.Text.Trim().TrimEnd('\\', '/');
-                    if (rel.Length == 0) throw new HdlssException("Indica la cartella delle mod o scegli «Automatica».");
                     if (!Directory.Exists(PathGuard.Resolve(_game.Root, rel))) throw new HdlssException("La cartella delle mod non esiste.");
                     profile.ModFolder = rel;
                 }

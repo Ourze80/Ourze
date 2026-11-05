@@ -39,7 +39,14 @@ public sealed class PlanBuilder
     /// For the game's own files (DLSS, Streamline): when the game replaced a managed file, accept
     /// it as the new original instead of blocking.
     /// </summary>
-    public bool AdoptGameChanges { get; set; }
+    public bool AdoptGameChanges
+    {
+        get => _plan.Meta.ContainsKey(AdoptGameChangesMeta);
+        set { if (value) _plan.Meta[AdoptGameChangesMeta] = "true"; else _plan.Meta.Remove(AdoptGameChangesMeta); }
+    }
+
+    /// <summary>Stored on the record so removal knows the same rule.</summary>
+    public const string AdoptGameChangesMeta = "adoptGameChanges";
 
     public string Full(string relative) => Locations.Resolve(Folder, _plan.Roots, relative);
 

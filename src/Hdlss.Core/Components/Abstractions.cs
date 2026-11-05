@@ -54,7 +54,7 @@ public sealed class GameContext
         Services = services;
         Gpu = gpu;
         Folder = game.Folder;
-        DetectedApi = ExecutableDetector.DetectApi(game.Exe, out var certain);
+        DetectedApi = ExecutableDetector.DetectApi(game.Exe, out var certain, game.ModFolder);
         var manual = services.Settings.Profile(game.Id).ApiOverride;
         Api = manual ?? DetectedApi;
         ApiCertain = manual != null || certain;
@@ -109,6 +109,8 @@ public interface IComponent
     /// or when it can't be known (offline). Checked before showing "Installa".
     /// </summary>
     Task<string?> UnavailableReasonAsync(GameContext ctx, CancellationToken cancel);
+    /// <summary>True when <see cref="UnavailableReasonAsync"/> actually checks something (online catalog…).</summary>
+    bool ChecksAvailability { get; }
     /// <summary>True when the files can already be in the game (DLLs shipped by the game): check them even if not managed.</summary>
     bool ChecksGameFiles { get; }
 }
@@ -179,6 +181,7 @@ public abstract class ComponentBase : IComponent
     }
 
     public virtual Task<string?> UnavailableReasonAsync(GameContext ctx, CancellationToken cancel) => Task.FromResult<string?>(null);
+    public virtual bool ChecksAvailability => false;
 
     protected string Option(IReadOnlyDictionary<string, string> options, string key) =>
         options.TryGetValue(key, out var v) ? v : Options.First(o => o.Key == key).Default;

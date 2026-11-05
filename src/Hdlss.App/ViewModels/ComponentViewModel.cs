@@ -129,7 +129,7 @@ public sealed partial class ComponentViewModel : ObservableObject
             State = UpdateState.Checking;
             _ = CheckForUpdateAsync();
         }
-        else if (Kind == ComponentStatusKind.NotInstalled && !HasBlockers)
+        else if (component.ChecksAvailability && Kind == ComponentStatusKind.NotInstalled && !HasBlockers)
         {
             State = UpdateState.Checking;
             _ = CheckAvailabilityAsync();

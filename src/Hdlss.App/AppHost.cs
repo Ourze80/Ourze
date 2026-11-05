@@ -33,7 +33,7 @@ public sealed class AppHost : IDisposable
         var http = new HttpService(Paths, Log);
         Services = new Services(Paths, Settings, store, states, engine, http, Log);
         Components = new ComponentService(Services);
-        Library = new GameLibrary(Settings, Log);
+        Library = new GameLibrary(Settings, Log) { HasManagedState = folder => File.Exists(states.FileFor(folder)) };
         Maintenance = new Maintenance(engine, Log);
         Log.Info($"HDLSS5 {typeof(AppHost).Assembly.GetName().Version} · dati: {Paths.Data}");
     }

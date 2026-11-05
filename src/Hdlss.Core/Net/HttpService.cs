@@ -43,8 +43,26 @@ public sealed class HttpService : IDisposable
         public string Body { get; set; } = "";
     }
 
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, Task<string>> _inFlight = new();
+
     /// <summary>GET text with ETag caching. Falls back to the cached body when offline or rate-limited.</summary>
-    public async Task<string> GetTextAsync(string url, CancellationToken cancel = default, TimeSpan? maxAge = null)
+    public Task<string> GetTextAsync(string url, CancellationToken cancel = default, TimeSpan? maxAge = null)
+    {
+        if (maxAge == null) return FetchTextAsync(url, cancel, null);
+        // Cacheable reads (catalogs shown on every card) share one request while it is running:
+        // several components checking at once would otherwise download and write the same file.
+        var task = _inFlight.GetOrAdd(url, u =>
+        {
+            var t = FetchTextAsync(u, CancellationToken.None, maxAge);
+            t.ContinueWith(_ => _inFlight.TryRemove(new KeyValuePair<string, Task<string>>(u, t)), TaskScheduler.Default);
+            return t;
+        });
+        // A cache hit completes synchronously, before GetOrAdd stored it: don't keep it around.
+        if (task.IsCompleted) _inFlight.TryRemove(new KeyValuePair<string, Task<string>>(url, task));
+        return task.WaitAsync(cancel);
+    }
+
+    private async Task<string> FetchTextAsync(string url, CancellationToken cancel, TimeSpan? maxAge)
     {
         var cacheFile = Path.Combine(_paths.HttpCache, FileHash.OfBytes(System.Text.Encoding.UTF8.GetBytes(url))[..24] + ".json");
         var cached = JsonFile.Read<CachedResponse>(cacheFile);
