@@ -13,6 +13,8 @@ public sealed class FileOp
     public bool KeepIfModified { get; init; }
     /// <summary>Returns the file to its pre-HDLSS content; it is no longer owned afterwards.</summary>
     public bool Release { get; init; }
+    /// <summary>The game replaced a managed file (update, file verification): the current file becomes the original to restore.</summary>
+    public bool NewOriginal { get; init; }
     public bool IsDelete => NewHash == null;
 
     public override string ToString() => IsDelete ? $"Rimuovi  {Path}"

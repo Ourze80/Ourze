@@ -140,6 +140,7 @@ public sealed class StreamlineComponent : ComponentBase
 
         var folders = Folders(ctx);
         var plan = ctx.NewPlan(this, $"Streamline {release.Version}");
+        plan.AdoptGameChanges = true; // the game's own files: an update or file check may replace them
         plan.AddRoot("root", ctx.Game.Root, ctx.Game.Root);
         var owned = ctx.State.Components.Values.Where(c => c.Id != Id).SelectMany(c => c.Files.Select(f => f.Path)).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var temp = Releases.TempDir(ctx);

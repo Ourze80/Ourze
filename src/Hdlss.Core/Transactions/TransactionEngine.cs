@@ -166,7 +166,7 @@ public sealed class TransactionEngine(ContentStore store, StateStore states, str
                 var prior = old?.FindFile(op.Path);
                 record.Files.Add(new FileRecord
                 {
-                    Path = op.Path, Before = prior != null ? prior.Before : op.Expected, After = op.NewHash!,
+                    Path = op.Path, Before = prior != null && !op.NewOriginal ? prior.Before : op.Expected, After = op.NewHash!,
                     Attributes = prior?.Attributes ?? FileAttributes.Normal, KeepIfModified = op.KeepIfModified,
                 });
             }

@@ -35,6 +35,12 @@ public sealed class PlanBuilder
 
     public ComponentRecord? Existing => _existing;
 
+    /// <summary>
+    /// For the game's own files (DLSS, Streamline): when the game replaced a managed file, accept
+    /// it as the new original instead of blocking.
+    /// </summary>
+    public bool AdoptGameChanges { get; set; }
+
     public string Full(string relative) => Locations.Resolve(Folder, _plan.Roots, relative);
 
     /// <summary>Registers a folder outside the game directory, addressed as "@alias/…".</summary>
@@ -63,13 +69,23 @@ public sealed class PlanBuilder
         if (owner != null && !string.Equals(owner, _plan.ComponentId, StringComparison.OrdinalIgnoreCase))
             throw new BlockedException($"{relative} è gestito dal componente «{owner}». Rimuovilo prima.");
         var prior = _existing?.FindFile(relative);
+        bool newOriginal = false;
         if (prior != null && !FileHash.Equal(current, prior.After))
         {
-            if (keepIfModified) { Note($"{relative}: modificato dall'utente, conservato."); return; }
-            throw new BlockedException($"{relative} è stato modificato da un'altra app dopo l'installazione. Rimuovi il componente o verifica i file del gioco.");
+            if (FileHash.Equal(current, prior.Before))
+            {
+                // Original put back by someone else (Steam "verify files", another tool): just reapply.
+            }
+            else if (AdoptGameChanges && current != null)
+            {
+                newOriginal = true;
+                Note($"{relative}: sostituito dal gioco o da un altro programma dopo l'ultima modifica; questa versione diventa il nuovo originale da ripristinare.");
+            }
+            else if (keepIfModified) { Note($"{relative}: modificato dall'utente, conservato."); return; }
+            else throw new BlockedException($"{relative} è stato modificato da un'altra app dopo l'installazione. Rimuovi il componente o verifica i file del gioco.");
         }
-        if (FileHash.Equal(current, hash) && prior != null) return; // already up to date
-        _plan.Files.Add(new FileOp { Path = relative, NewHash = hash, Expected = current, KeepIfModified = keepIfModified });
+        if (FileHash.Equal(current, hash) && prior != null && !newOriginal) return; // already up to date
+        _plan.Files.Add(new FileOp { Path = relative, NewHash = hash, Expected = current, KeepIfModified = keepIfModified, NewOriginal = newOriginal });
     }
 
     /// <summary>Opens (once) an INI file of the game folder for semantic edits.</summary>

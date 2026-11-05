@@ -150,6 +150,7 @@ public sealed class DlssUpdateComponent : ComponentBase
             foreach (var kind in latest.Where(p => p.Value.Version != wanted && files.Any(f => Path.GetFileName(f.FullPath).Equals(p.Key, StringComparison.OrdinalIgnoreCase))))
                 notesOnTop.Add($"{DlssCatalog.Label(kind.Key)}: la versione {wanted} non esiste, uso la più recente ({kind.Value.Version}).");
         var plan = ctx.NewPlan(this, VersionLabel(latest));
+        plan.AdoptGameChanges = true; // the game's own files: an update or file check may replace them
         foreach (var n in notesOnTop) plan.Note(n);
         plan.AddRoot("root", ctx.Game.Root, ctx.Game.Root);
         var temp = Releases.TempDir(ctx);

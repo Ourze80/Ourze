@@ -31,6 +31,36 @@ public class TransactionTests : IDisposable
     }
 
     [Fact]
+    public void Original_put_back_by_another_tool_can_be_updated_again()
+    {
+        _f.GameFile("sl.interposer.dll", "original");
+        var b = _f.Builder(); b.AddFile("sl.interposer.dll", _f.PayloadFile("a", "v1")); _f.Engine.Apply(b.Build());
+        _f.GameFile("sl.interposer.dll", "original");               // Steam "verify files"
+
+        var again = _f.Builder(); again.AddFile("sl.interposer.dll", _f.PayloadFile("b", "v2")); _f.Engine.Apply(again.Build());
+        Assert.Equal("v2", _f.Read("sl.interposer.dll"));
+        _f.Engine.Apply(_f.Removal("comp"));
+        Assert.Equal("original", _f.Read("sl.interposer.dll"));
+    }
+
+    [Fact]
+    public void Game_update_becomes_the_new_original_for_game_dlls_only()
+    {
+        _f.GameFile("nvngx_dlss.dll", "original");
+        var b = _f.Builder(); b.AddFile("nvngx_dlss.dll", _f.PayloadFile("a", "v1")); _f.Engine.Apply(b.Build());
+        _f.GameFile("nvngx_dlss.dll", "patched-by-game");          // game update
+
+        var strict = _f.Builder();
+        Assert.Throws<BlockedException>(() => strict.AddFile("nvngx_dlss.dll", _f.PayloadFile("b", "v2")));
+
+        var adopt = _f.Builder(); adopt.AdoptGameChanges = true;
+        adopt.AddFile("nvngx_dlss.dll", _f.PayloadFile("b", "v2")); _f.Engine.Apply(adopt.Build());
+        Assert.Equal("v2", _f.Read("nvngx_dlss.dll"));
+        _f.Engine.Apply(_f.Removal("comp"));
+        Assert.Equal("patched-by-game", _f.Read("nvngx_dlss.dll"));
+    }
+
+    [Fact]
     public void File_changed_after_preview_aborts_without_touching_anything()
     {
         _f.GameFile("dxgi.dll", "original");
