@@ -1,5 +1,12 @@
 # HDLSS5
 
+> [!NOTE]
+> **HDLSS5 2.0 preview is available** — a full rewrite in .NET 8 with a new install engine, a clearer game page and a redesigned DLL page (Italian interface for now).
+> [Download the 2.0 preview](https://github.com/giorgiobascialla-hub/Ourze/releases/tag/v2.0.0-preview) · [Source on the `v2` branch](https://github.com/giorgiobascialla-hub/Ourze/tree/v2).
+> 1.5.1 below remains the stable version.
+>
+> **È disponibile l'anteprima di HDLSS5 2.0**, riscritto da zero: [scarica l'anteprima](https://github.com/giorgiobascialla-hub/Ourze/releases/tag/v2.0.0-preview) · [codice sul ramo `v2`](https://github.com/giorgiobascialla-hub/Ourze/tree/v2). La versione stabile resta la 1.5.1.
+
 **Portable Windows manager for OptiScaler, ReShade, Neural Rendering, HDR add-ons and graphics DLLs.**
 
 [Download HDLSS5 1.5.1](https://github.com/giorgiobascialla-hub/Ourze/releases/tag/v1.5.1) · [Changelog](CHANGELOG.md)
