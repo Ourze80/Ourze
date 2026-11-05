@@ -1,4 +1,0 @@
-HDLSS5 1.5.1 - Windows x64 / .NET Framework 4.8
-Chiudi l'app e conserva data, data-location.txt, nr-packages e backup. Estrai il pacchetto e avvia HDLSS5.exe.
-Guida interna: 15 capitoli, dal funzionamento dell'interfaccia alle procedure. Italiano e inglese (fallback per le altre lingue).
-La precedente segnalazione Defender resta irrisolta. Nessuna esclusione o disattivazione delle protezioni è inclusa.

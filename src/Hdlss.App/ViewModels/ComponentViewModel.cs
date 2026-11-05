@@ -1,0 +1,284 @@
+﻿using System.Collections.ObjectModel;
+using System.Windows.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Hdlss.App.Views;
+using Hdlss.Core;
+using Hdlss.Core.Components;
+
+namespace Hdlss.App.ViewModels;
+
+public sealed class OptionViewModel(ComponentOption option) : ObservableObject
+{
+    public ComponentOption Option { get; } = option;
+    public string Label => Option.Label;
+    public IReadOnlyList<ChoiceItem> Choices { get; } = option.Choices.Select(c => new ChoiceItem(c.Value, c.Label)).ToList();
+    public event Action? Changed;
+    private ChoiceItem? _selected;
+    public ChoiceItem Selected
+    {
+        get => _selected ??= Choices.First(c => c.Value == Option.Default);
+        set { if (SetProperty(ref _selected, value)) Changed?.Invoke(); }
+    }
+}
+
+public sealed record ChoiceItem(string Value, string Label)
+{
+    public override string ToString() => Label;
+}
+
+/// <summary>What the component card offers: install only if missing, update only if newer.</summary>
+public enum UpdateState { NotInstalled, Checking, UpToDate, UpdateAvailable, OptionsChanged, Unknown, Unavailable }
+
+public sealed partial class ComponentViewModel : ObservableObject
+{
+    private readonly GameDetailViewModel _owner;
+    private readonly Hdlss.Core.Transactions.ComponentRecord? _record;
+
+    public IComponent Component { get; }
+    public int Step { get; }
+    public string Name => Component.Name;
+    public string Description => Component.Description;
+    public ObservableCollection<OptionViewModel> Options { get; }
+
+    public ComponentStatusKind Kind { get; }
+    [ObservableProperty] private string _statusText = "";
+    [ObservableProperty] private string _statusBrushKey = "Muted";
+    [ObservableProperty] private UpdateState _state;
+    [ObservableProperty] private string? _latestVersion;
+    public string BlockersText { get; }
+    public bool HasBlockers => BlockersText.Length > 0;
+    public bool IsManaged { get; }
+    public bool HasOptions => Options.Count > 0;
+    public bool HasStep => Step > 0;
+    public bool CanImportFile => Component is ILocalImport;
+    /// <summary>Installed by another tool and recognised: can be taken over with "Importa in HDLSS5".</summary>
+    public bool CanImportExternal => _owner.Foreign.Any(f => f.Install.ComponentId == Component.Id);
+    public string ImportLabel => (Component as ILocalImport)?.ImportLabel ?? "";
+    public string CategoryName => ComponentCatalog.CategoryName(Component.Category);
+
+    /// <summary>Main button: shown only when there is something to do.</summary>
+    public bool ShowAction => !CanImportExternal && State is UpdateState.NotInstalled or UpdateState.UpdateAvailable or UpdateState.OptionsChanged;
+    public string ActionLabel => State switch
+    {
+        UpdateState.UpdateAvailable => LatestVersion is { Length: <= 28 } v ? $"Aggiorna a {v}" : "Aggiorna",
+        UpdateState.OptionsChanged => "Applica le modifiche",
+        _ => "Installa",
+    };
+    /// <summary>Secondary "Reinstalla": when the latest version can't be checked, or for tinkerers.</summary>
+    public bool ShowReinstall => IsManaged && (State == UpdateState.Unknown || State == UpdateState.UpToDate && _owner.Advanced);
+    public bool IsChecking => State == UpdateState.Checking;
+    public string CheckingText => IsManaged || Kind == ComponentStatusKind.External ? "Controllo aggiornamenti…" : "Controllo disponibilità…";
+    /// <summary>Why this component can't be installed for the game (e.g. no mod in the catalog).</summary>
+    [ObservableProperty] private string _unavailableText = "";
+    public bool IsUnavailable => UnavailableText.Length > 0;
+    partial void OnUnavailableTextChanged(string value) => OnPropertyChanged(nameof(IsUnavailable));
+
+    public Brush StatusBrush => (Brush)System.Windows.Application.Current.Resources[StatusBrushKey];
+
+    partial void OnStatusBrushKeyChanged(string value) => OnPropertyChanged(nameof(StatusBrush));
+    partial void OnStateChanged(UpdateState value)
+    {
+        OnPropertyChanged(nameof(ShowAction)); OnPropertyChanged(nameof(ActionLabel));
+        OnPropertyChanged(nameof(ShowReinstall)); OnPropertyChanged(nameof(IsChecking));
+    }
+
+    public ComponentViewModel(GameDetailViewModel owner, IComponent component, int step)
+    {
+        _owner = owner;
+        Component = component;
+        Step = step;
+        Options = new(component.Options.Select(o => new OptionViewModel(o)));
+        var ctx = owner.Context!;
+        _record = ctx.State.Get(component.Id);
+        IsManaged = _record != null;
+        // Pre-select the options the component was installed with.
+        if (_record != null)
+            foreach (var o in Options)
+                if (_record.Meta.TryGetValue(o.Option.Key, out var v) && o.Choices.FirstOrDefault(c => c.Value == v) is { } choice) o.Selected = choice;
+        foreach (var o in Options) o.Changed += OnOptionChanged;
+        try
+        {
+            var status = component.Detect(ctx);
+            Kind = status.Kind;
+            StatusText = status.Detail;
+            StatusBrushKey = Kind switch { ComponentStatusKind.Installed => "Accent", ComponentStatusKind.External => "Warn", ComponentStatusKind.Blocked => "Danger", _ => "Muted" };
+            BlockersText = string.Join("\n", component.Blockers(ctx));
+            if (!IsManaged && owner.LegacyComponents.Contains(component.Id))
+            {
+                StatusText = "Installato da HDLSS5 1.x";
+                BlockersText = "Installazione della versione 1.x: usa «Adotta» nella sezione HDLSS5 1.x qui sopra per gestirla da qui (nessun file viene modificato).";
+            }
+            else if (!IsManaged && owner.ForeignComponents.Contains(component.Id))
+            {
+                var source = owner.Foreign.First(x => x.Install.ComponentId == component.Id).Install.Source;
+                StatusText = $"Installato da {source}";
+                BlockersText = "";
+            }
+        }
+        catch (Exception ex) when (ex is HdlssException or IOException or UnauthorizedAccessException)
+        {
+            Kind = ComponentStatusKind.Blocked;
+            StatusText = "Stato non leggibile";
+            StatusBrushKey = "Danger";
+            BlockersText = ex.Message;
+        }
+        // Managed components, and the game's own DLLs (DLSS, Streamline, NR model) even when untouched.
+        if (IsManaged || component.ChecksGameFiles && Kind == ComponentStatusKind.External && !HasBlockers)
+        {
+            State = UpdateState.Checking;
+            _ = CheckForUpdateAsync();
+        }
+        else if (Kind == ComponentStatusKind.NotInstalled && !HasBlockers)
+        {
+            State = UpdateState.Checking;
+            _ = CheckAvailabilityAsync();
+        }
+        else State = UpdateState.NotInstalled;
+    }
+
+    /// <summary>Not installed: is there anything to install for this game? Offline counts as yes.</summary>
+    private async Task CheckAvailabilityAsync()
+    {
+        var ctx = _owner.Context;
+        string? reason = null;
+        if (ctx != null)
+        {
+            try { reason = await Task.Run(() => Component.UnavailableReasonAsync(ctx, CancellationToken.None)); }
+            catch (Exception ex) when (ex is HdlssException or IOException or HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+            {
+                _owner.Main.Host.Log.Debug($"Disponibilità {Name}: {ex.Message}");
+            }
+        }
+        if (reason == null) { State = UpdateState.NotInstalled; return; }
+        UnavailableText = reason;
+        StatusText = "Non disponibile per questo gioco";
+        StatusBrushKey = "Muted";
+        State = UpdateState.Unavailable;
+    }
+
+    private Dictionary<string, string> SelectedOptions() => Options.ToDictionary(o => o.Option.Key, o => o.Selected.Value);
+
+    private bool OptionsDiffer() =>
+        _record != null && Options.Any(o => _record.Meta.TryGetValue(o.Option.Key, out var v) ? v != o.Selected.Value : o.Selected.Value != o.Option.Default);
+
+    private void OnOptionChanged()
+    {
+        if (!IsManaged)
+        {
+            if (Component.ChecksGameFiles && Kind == ComponentStatusKind.External) { State = UpdateState.Checking; _ = CheckForUpdateAsync(); }
+            return;
+        }
+        if (OptionsDiffer()) State = UpdateState.OptionsChanged;
+        else { State = UpdateState.Checking; _ = CheckForUpdateAsync(); }
+    }
+
+    /// <summary>Compares what is on disk with what an install would bring now (no download).</summary>
+    private async Task CheckForUpdateAsync()
+    {
+        var ctx = _owner.Context;
+        if (ctx == null) return;
+        UpdateCheck? check = null;
+        try
+        {
+            var options = SelectedOptions();
+            check = await Task.Run(() => Component.CheckUpdateAsync(ctx, options, CancellationToken.None));
+        }
+        catch (Exception ex) when (ex is HdlssException or IOException or HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            _owner.Main.Host.Log.Debug($"Controllo aggiornamenti {Name}: {ex.Message}");
+        }
+        if (State == UpdateState.OptionsChanged) return;
+        LatestVersion = check?.Latest;
+        var source = IsManaged ? "" : "Originali del gioco · ";
+        if (check == null)
+        {
+            if (!IsManaged) { State = UpdateState.NotInstalled; return; }
+            State = UpdateState.Unknown;
+            StatusText = $"Installato · {_record?.Version}";
+            StatusBrushKey = "Accent";
+            return;
+        }
+        switch (check.Verdict)
+        {
+            case VersionVerdict.UpToDate:
+                State = UpdateState.UpToDate;
+                StatusText = $"{source}Aggiornato · {check.Present}";
+                StatusBrushKey = "Accent";
+                break;
+            case VersionVerdict.Newer:
+                State = UpdateState.UpdateAvailable;
+                StatusText = $"{source}{check.Present} · disponibile {check.Latest}";
+                StatusBrushKey = "Warn";
+                break;
+            default:
+                State = UpdateState.UpdateAvailable;
+                StatusText = $"Installato ({check.Present}) · versione non nota, ultima {check.Latest}";
+                StatusBrushKey = "Warn";
+                break;
+        }
+    }
+
+    private bool CanInstall() => !HasBlockers && !_owner.Main.Busy;
+    private bool CanRemove() => IsManaged && !_owner.Main.Busy;
+
+    [RelayCommand]
+    private Task ImportExternalAsync() =>
+        _owner.Foreign.FirstOrDefault(f => f.Install.ComponentId == Component.Id) is { } item ? _owner.ImportOneAsync(item.Install) : Task.CompletedTask;
+
+    [RelayCommand(CanExecute = nameof(CanInstall))]
+    private async Task InstallAsync()
+    {
+        var ctx = _owner.Context!;
+        var host = _owner.Main.Host;
+        var options = Options.ToDictionary(o => o.Option.Key, o => o.Selected.Value);
+        var ok = await _owner.Main.RunAsync($"{Name}: preparazione", async (progress, cancel) =>
+        {
+            await _owner.ReleaseStandaloneModelAsync(ctx, Component.Id, progress, cancel);
+            var plan = await Task.Run(() => host.Components.PlanInstallAsync(ctx, Component, options, progress, cancel), cancel);
+            foreach (var (k, v) in options) plan.Meta[k] = v;
+            if (plan.IsEmpty) { Dialogs.Info($"{Name} è già aggiornato.\n\n{string.Join("\n", plan.Notes)}"); return; }
+            if (!Dialogs.ConfirmPlan(plan)) throw new OperationCanceledException();
+            await Task.Run(() => host.Components.Apply(ctx, plan, progress), cancel);
+            if (plan.Notes.Count > 0) Dialogs.Info($"{Name} installato.\n\n{string.Join("\n", plan.Notes)}");
+        });
+        if (ok) await _owner.AfterChangeAsync(Component.Id);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanInstall))]
+    private async Task ImportAsync()
+    {
+        if (Component is not ILocalImport importer) return;
+        var file = Dialogs.PickFile(importer.ImportFilter);
+        if (file == null) return;
+        var ctx = _owner.Context!;
+        var host = _owner.Main.Host;
+        var ok = await _owner.Main.RunAsync($"{Name}: importazione", async (progress, cancel) =>
+        {
+            var plan = await Task.Run(() => host.Components.PlanImportAsync(ctx, Component, file, progress, cancel), cancel);
+            if (plan.IsEmpty) { Dialogs.Info("Il file è già installato."); return; }
+            if (!Dialogs.ConfirmPlan(plan)) throw new OperationCanceledException();
+            await Task.Run(() => host.Components.Apply(ctx, plan, progress), cancel);
+        });
+        if (ok) await _owner.AfterChangeAsync(Component.Id);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRemove))]
+    private async Task RemoveAsync() => await Remove(false);
+
+    [RelayCommand(CanExecute = nameof(CanRemove))]
+    private async Task RemoveForceAsync() => await Remove(true);
+
+    private async Task Remove(bool force)
+    {
+        var ctx = _owner.Context!;
+        var host = _owner.Main.Host;
+        var ok = await _owner.Main.RunAsync($"{Name}: rimozione", async (progress, cancel) =>
+        {
+            var plan = await Task.Run(() => host.Components.PlanRemoval(ctx, Component.Id, force), cancel);
+            if (!Dialogs.ConfirmPlan(plan)) throw new OperationCanceledException();
+            await Task.Run(() => host.Components.Apply(ctx, plan, progress), cancel);
+        });
+        if (ok) await _owner.AfterChangeAsync(Component.Id);
+    }
+}

@@ -1,4 +1,0 @@
-HDLSS5 1.5 - Windows x64 / .NET Framework 4.8
-Estrarre l’intero archivio e avviare HDLSS5.exe. La cartella nr-packages contiene i modelli NR per RTX 4000 e 5000.
-Per aggiornare: chiudere HDLSS5, sostituire i file del pacchetto e conservare data, data-location.txt e tutti i backup. Non includere cartelle data personali nelle condivisioni.
-Changelog interno: Guida > Changelog 1.5. Changelog completo in CHANGELOG.md.

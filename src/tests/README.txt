@@ -1,1 +1,0 @@
-Build ..\build.ps1 -Output .\HDLSS.exe from this folder, then run compile-tests.ps1 / compile-ui.ps1. Tests.exe NEW_EMPTY_OUTPUT_DIRECTORY downloads official MFG and ReShade releases and modifies only its fixtures. UiTests.exe NEW_EMPTY_OUTPUT_DIRECTORY validates translations and UI. Use a fresh output directory for every run. No real game modified.
