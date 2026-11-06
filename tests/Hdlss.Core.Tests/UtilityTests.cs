@@ -138,6 +138,20 @@ public class DetectionTests
     }
 
     [Fact]
+    public void Peak_nits_accept_a_typed_value_in_range()
+    {
+        var peak = new Hdlss.Core.Components.UnrealHdrComponent().Options.Single(o => o.Key == "peak");
+        Assert.Equal("1000", peak.Normalize("1000"));
+        Assert.Equal("1234", peak.Normalize("1234"));
+        Assert.Equal("1234", peak.Normalize(" 1234 nit "));
+        Assert.Equal("1234", peak.Normalize("1.234"));
+        Assert.Null(peak.Normalize("50"));
+        Assert.Null(peak.Normalize("20000"));
+        Assert.Null(peak.Normalize("mille"));
+        Assert.Null(peak.Normalize("-800"));
+    }
+
+    [Fact]
     public void Manual_root_expands_unreal_layout()
     {
         var root = Path.Combine(Path.GetTempPath(), "hdlss-tests", Guid.NewGuid().ToString("N"));

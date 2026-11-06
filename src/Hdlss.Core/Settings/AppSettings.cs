@@ -24,6 +24,8 @@ public sealed class AppSettings
     public bool AdvancedMode { get; set; }
     public int KeepJournalsPerGame { get; set; } = 10;
     public long DownloadCacheLimitMb { get; set; } = 2048;
+    /// <summary>App and logo color, "#RRGGBB" (null = logo cyan).</summary>
+    public string? AccentColor { get; set; }
 
     public GameProfile Profile(string gameId)
     {

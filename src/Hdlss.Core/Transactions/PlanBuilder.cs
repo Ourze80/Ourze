@@ -60,8 +60,12 @@ public sealed class PlanBuilder
     public void Note(string text) => _plan.Notes.Add(text);
     public void Meta(string key, string value) => _plan.Meta[key] = value;
 
-    public void AddFile(string relative, string sourceFile, bool keepIfModified = false) =>
-        Add(PathGuard.Normalize(relative), _store.Put(sourceFile), keepIfModified);
+    /// <param name="sameKind">
+    /// Recognizes a file that another tool replaced with another build of the same component
+    /// (e.g. a mod manager updating REFramework): it is updated instead of blocking.
+    /// </param>
+    public void AddFile(string relative, string sourceFile, bool keepIfModified = false, Func<string, bool>? sameKind = null) =>
+        Add(PathGuard.Normalize(relative), _store.Put(sourceFile), keepIfModified, sameKind: sameKind);
 
     /// <param name="builtOnCurrent">
     /// The data was built from the file as it is now (user changes included): write it even when the
@@ -70,7 +74,7 @@ public sealed class PlanBuilder
     public void AddBytes(string relative, byte[] data, bool keepIfModified = false, bool builtOnCurrent = false) =>
         Add(PathGuard.Normalize(relative), _store.Put(data), keepIfModified, builtOnCurrent);
 
-    private void Add(string relative, string hash, bool keepIfModified, bool builtOnCurrent = false)
+    private void Add(string relative, string hash, bool keepIfModified, bool builtOnCurrent = false, Func<string, bool>? sameKind = null)
     {
         if (_ini.ContainsKey(relative)) throw new InvalidOperationException($"{relative} è già modificato come configurazione.");
         Want(relative);
@@ -80,7 +84,7 @@ public sealed class PlanBuilder
         if (owner != null && !string.Equals(owner, _plan.ComponentId, StringComparison.OrdinalIgnoreCase))
             throw new BlockedException($"{relative} è gestito dal componente «{owner}». Rimuovilo prima.");
         var prior = _existing?.FindFile(relative);
-        bool newOriginal = false;
+        bool newOriginal = false, adopted = false;
         if (prior != null && !FileHash.Equal(current, prior.After))
         {
             if (FileHash.Equal(current, prior.Before))
@@ -94,9 +98,17 @@ public sealed class PlanBuilder
             }
             else if (keepIfModified && builtOnCurrent) { Note($"{relative}: le tue modifiche restano, cambiate solo le impostazioni di HDLSS5."); }
             else if (keepIfModified) { Note($"{relative}: modificato dall'utente, conservato."); return; }
+            else if (current != null && sameKind != null && sameKind(full))
+            {
+                // Recorded again even when it already is the new build, so the installed version is right.
+                adopted = true;
+                Note(FileHash.Equal(current, hash)
+                    ? $"{relative}: un altro programma l'aveva già portato a questa versione; HDLSS5 lo riprende in gestione."
+                    : $"{relative}: un altro programma l'aveva sostituito con un'altra versione dello stesso componente; viene aggiornato (backup della versione attuale).");
+            }
             else throw new BlockedException($"{relative} è stato modificato da un'altra app dopo l'installazione. Rimuovi il componente o verifica i file del gioco.");
         }
-        if (FileHash.Equal(current, hash) && prior != null && !newOriginal) return; // already up to date
+        if (FileHash.Equal(current, hash) && prior != null && !newOriginal && !adopted) return; // already up to date
         _plan.Files.Add(new FileOp { Path = relative, NewHash = hash, Expected = current, KeepIfModified = keepIfModified, NewOriginal = newOriginal });
     }
 

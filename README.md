@@ -20,6 +20,7 @@ HDLSS5 finds the games installed on your PC, works out how each one is built (en
 - **"Did it work?"**: after a few minutes of play, it reads the game logs and tells you whether Neural Rendering actually started.
 - **Always reversible**: every change goes into the history; "Remove" puts the game's original files back.
 - **Clear status**: "Install" only when something is missing, "Update" only when a newer version really exists. If a mod doesn't exist for a game, the app says so.
+- **Your color**: pick the app and logo color in Settings (presets, hue/saturation/brightness or a hex code); the window and taskbar icon follow it.
 
 ![Game page](assets/screenshot-game.png)
 
@@ -30,7 +31,7 @@ HDLSS5 finds the games installed on your PC, works out how each one is built (en
 | **ReShade** | ReShade (with a choice of menu key), RenoDX NR (Lecram 10.8 or ShortFuse), Feeder, RenoDX HDR mods, MFG Unlock (RTX 4000), Lilium and CAS shaders |
 | **OptiScaler** | OptiScaler Standard and F5 (with a choice of menu key), with ReShade loaded by OptiScaler without conflicts |
 | **DLL** | NR model 310.9.16.0 for RTX 4000/5000, DLSS (Super Resolution, Frame Generation, Ray Reconstruction) and Streamline |
-| **Other** | Unreal HDR (Engine.ini), UE4SS with in-game HDR reader, Ultimate ASI Loader, REFramework |
+| **Other** | Unreal HDR (Engine.ini, peak nits typed or picked), UE4SS with in-game HDR reader, Ultimate ASI Loader, REFramework |
 
 ## DLL page
 

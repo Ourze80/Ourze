@@ -18,7 +18,42 @@ public sealed class OptionViewModel(ComponentOption option) : ObservableObject
     public ChoiceItem Selected
     {
         get => _selected ??= Choices.First(c => c.Value == Option.Default);
-        set { if (SetProperty(ref _selected, value)) Changed?.Invoke(); }
+        set
+        {
+            if (value == null) return;   // an editable ComboBox clears SelectedItem for typed values
+            if (SetProperty(ref _selected, value)) { OnPropertyChanged(nameof(Text)); Changed?.Invoke(); }
+        }
+    }
+
+    /// <summary>The option also accepts a typed number (e.g. peak nits).</summary>
+    public bool IsEditable => Option.Custom != null;
+    public bool IsFixed => !IsEditable;
+    public string? Hint => Option.Custom?.Hint;
+
+    private string? _error;
+    public string? Error { get => _error; private set { if (SetProperty(ref _error, value)) OnPropertyChanged(nameof(HasError)); } }
+    public bool HasError => Error != null;
+
+    /// <summary>Text of the editable ComboBox: a choice label or a typed number.</summary>
+    public string Text
+    {
+        get => Selected.Label;
+        set
+        {
+            if (value == Selected.Label) { Error = null; return; }
+            var normalized = Choices.FirstOrDefault(c => c.Label == value)?.Value ?? Option.Normalize(value);
+            if (normalized == null) { Error = Hint; return; }
+            Error = null;
+            Select(normalized);
+        }
+    }
+
+    /// <summary>Selects a stored value: a choice, or a valid custom number.</summary>
+    public bool Select(string value)
+    {
+        if (Choices.FirstOrDefault(c => c.Value == value) is { } choice) { Selected = choice; return true; }
+        if (Option.Custom is { } range && range.Normalize(value) is { } n) { Selected = new ChoiceItem(n, range.Label(n)); return true; }
+        return false;
     }
 }
 
@@ -95,7 +130,7 @@ public sealed partial class ComponentViewModel : ObservableObject
         // Pre-select the options the component was installed with.
         if (_record != null)
             foreach (var o in Options)
-                if (_record.Meta.TryGetValue(o.Option.Key, out var v) && o.Choices.FirstOrDefault(c => c.Value == v) is { } choice) o.Selected = choice;
+                if (_record.Meta.TryGetValue(o.Option.Key, out var v)) o.Select(v);
         foreach (var o in Options) o.Changed += OnOptionChanged;
         try
         {

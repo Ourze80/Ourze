@@ -186,7 +186,7 @@ public sealed class ReFrameworkComponent : ComponentBase
             if (!File.Exists(dll) || !Recognized(dll)) throw new HdlssException("REFramework: pacchetto non valido.");
             var plan = ctx.NewPlan(this, $"{id} · {release.Tag}");
             plan.Meta("source", asset.Url);
-            plan.AddFile("dinput8.dll", dll);
+            plan.AddFile("dinput8.dll", dll, sameKind: Recognized);
             plan.Note("Script e impostazioni di REFramework (cartella reframework) restano invariati alla rimozione.");
             return plan.Build();
         }

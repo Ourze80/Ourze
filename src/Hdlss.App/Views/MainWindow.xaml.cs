@@ -41,4 +41,13 @@ public partial class MainWindow : Window
             (DataContext as MainViewModel)?.TrySaveSettings();
         };
     }
+
+    // Editable option (typed nits): commit the text on Enter or after picking from the list.
+    private void EditableOption_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter) { EditableOption_Commit(sender, e); e.Handled = true; }
+    }
+
+    private void EditableOption_Commit(object? sender, EventArgs e) =>
+        (sender as System.Windows.Controls.ComboBox)?.GetBindingExpression(System.Windows.Controls.ComboBox.TextProperty)?.UpdateSource();
 }

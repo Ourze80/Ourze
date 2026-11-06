@@ -5,11 +5,82 @@
         Style="{StaticResource AppWindow}" Width="720" SizeToContent="Height"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False" ResizeMode="NoResize"
         Title="{Binding [settings], Source={x:Static app:Loc.Instance}}">
+    <Window.Resources>
+        <!-- Slider drawn on its gradient (Background), round thumb -->
+        <Style x:Key="ColorSlider" TargetType="Slider">
+            <Setter Property="IsMoveToPointEnabled" Value="True" />
+            <Setter Property="Height" Value="22" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid>
+                            <Border Height="10" CornerRadius="5" Background="{TemplateBinding Background}" Margin="8,0"
+                                    BorderBrush="{StaticResource Border}" BorderThickness="1" />
+                            <Track x:Name="PART_Track">
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Ellipse Width="18" Height="18" Fill="#F5F7FA" Stroke="#0B0D10" StrokeThickness="2" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
     <StackPanel Margin="22">
         <TextBlock Style="{StaticResource Heading}" Text="{Binding [settings], Source={x:Static app:Loc.Instance}}" Margin="0,0,0,14" />
 
         <TextBlock Text="{Binding [settings.language], Source={x:Static app:Loc.Instance}}" Margin="0,0,0,6" />
         <ComboBox x:Name="LanguageBox" HorizontalAlignment="Left" Margin="0,0,0,16" />
+
+        <TextBlock Text="Colore dell'app e del logo" Margin="0,0,0,6" />
+        <Border Background="{StaticResource Card}" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,16">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Left" Width="130" Margin="0,0,20,0">
+                    <Border Width="84" Height="84" CornerRadius="18" Background="#090D14" HorizontalAlignment="Center">
+                        <Image Source="{DynamicResource LogoImage}" Width="44" Height="44" RenderOptions.BitmapScalingMode="HighQuality" />
+                    </Border>
+                    <Button Style="{StaticResource Primary}" Content="Anteprima" Margin="0,14,0,0" HorizontalAlignment="Center" IsHitTestVisible="False" Focusable="False" />
+                    <TextBlock Text="Consigliato" Foreground="{DynamicResource Accent}" HorizontalAlignment="Center" FontSize="12" Margin="0,8,0,0" />
+                </StackPanel>
+                <StackPanel>
+                    <WrapPanel x:Name="Swatches" Margin="0,0,0,10" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="90" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="30" /><RowDefinition Height="30" /><RowDefinition Height="30" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="Tonalità" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
+                        <Slider x:Name="HueSlider" Grid.Column="1" Style="{StaticResource ColorSlider}" Minimum="0" Maximum="360" ValueChanged="Hsv_Changed" />
+                        <TextBlock Grid.Row="1" Text="Saturazione" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
+                        <Slider x:Name="SatSlider" Grid.Row="1" Grid.Column="1" Style="{StaticResource ColorSlider}" Minimum="0" Maximum="100" ValueChanged="Hsv_Changed" />
+                        <TextBlock Grid.Row="2" Text="Luminosità" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
+                        <Slider x:Name="ValSlider" Grid.Row="2" Grid.Column="1" Style="{StaticResource ColorSlider}" Minimum="25" Maximum="100" ValueChanged="Hsv_Changed" />
+                    </Grid>
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <TextBlock Text="Codice" VerticalAlignment="Center" Foreground="{StaticResource Muted}" Width="90" />
+                        <TextBox x:Name="HexBox" Width="110" LostFocus="Hex_Commit" KeyDown="Hex_KeyDown" FontFamily="{StaticResource MonoFont}" />
+                        <Button Content="Ripristina azzurro del logo" Margin="10,0,0,0" Click="ResetColor_Click" />
+                    </StackPanel>
+                    <TextBlock x:Name="HexError" Foreground="{StaticResource Warn}" FontSize="12" Margin="90,4,0,0" Visibility="Collapsed"
+                               Text="Scrivi un colore come #3DDBFE" />
+                    <TextBlock x:Name="DarkWarning" Foreground="{StaticResource Warn}" FontSize="12" Margin="90,4,0,0" Visibility="Collapsed"
+                               Text="Colore scuro: scritte e logo si leggono meno sullo sfondo scuro. Alza la luminosità." />
+                    <TextBlock Style="{StaticResource MutedText}" Margin="0,8,0,0"
+                               Text="Si vede subito; «Salva» lo conserva, «Annulla» torna al colore di prima. Verde (attivo) e arancione (avvisi) restano fissi. L'icona del file HDLSS5.exe in Esplora file resta azzurra." />
+                </StackPanel>
+            </DockPanel>
+        </Border>
 
         <TextBlock Text="{Binding [settings.legacy], Source={x:Static app:Loc.Instance}}" Margin="0,0,0,6" />
         <DockPanel Margin="0,0,0,4">
