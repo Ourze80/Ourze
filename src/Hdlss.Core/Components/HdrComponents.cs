@@ -201,7 +201,8 @@ public sealed class UnrealHdrComponent : ComponentBase
     public override IReadOnlyList<ComponentOption> Options =>
     [
         new("profile", "Profilo", [("native", "Nativo (scRGB, ACES)"), ("renodx", "RenoDX UE Extended")], "native"),
-        new("peak", "Luminanza massima", [("600", "600 nit"), ("800", "800 nit"), ("1000", "1000 nit"), ("1500", "1500 nit"), ("2000", "2000 nit"), ("4000", "4000 nit")], "1000"),
+        new("peak", "Luminanza massima", [("600", "600 nit"), ("800", "800 nit"), ("1000", "1000 nit"), ("1500", "1500 nit"), ("2000", "2000 nit"), ("4000", "4000 nit")], "1000",
+            Custom: new OptionRange(100, 10000, "nit")),
         new("ui", "Luminosità interfaccia", [("0.75", "75%"), ("1", "100%"), ("1.25", "125%"), ("1.5", "150%")], "1"),
     ];
 
@@ -237,7 +238,9 @@ public sealed class UnrealHdrComponent : ComponentBase
     {
         var config = Config(ctx) ?? throw new BlockedException("Cartella Saved/Config non trovata.");
         var profile = Option(options, "profile");
-        var peak = int.Parse(Option(options, "peak"), CultureInfo.InvariantCulture);
+        var peakOption = Options.First(o => o.Key == "peak");
+        var peak = int.Parse(peakOption.Normalize(Option(options, "peak"))
+            ?? throw new BlockedException($"Luminanza massima non valida: {peakOption.Custom!.Hint} (nit)."), CultureInfo.InvariantCulture);
         var ui = Option(options, "ui");
         var plan = ctx.NewPlan(this, profile == "renodx" ? "RenoDX UE Extended" : $"Nativo · {peak} nit");
         plan.AddRoot("cfg", config, ctx.Game.Root);

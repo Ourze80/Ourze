@@ -35,12 +35,14 @@ public partial class App : Application
             return;
         }
         Loc.Instance.Language = _host.Settings.Language;
+        Views.AccentTheme.Apply(_host.Settings.AccentColor);
         DarkTitleBar.Register();
         DispatcherUnhandledException += OnUnhandled;
         var vm = new MainViewModel(_host);
         var window = new MainWindow { DataContext = vm };
         DarkTitleBar.Attach(window);
         MainWindow = window;
+        if (Views.AccentTheme.Current != Views.AccentTheme.Default) window.Icon = Views.AccentTheme.Icon(Views.AccentTheme.Current, 256);
         window.Show();
         _ = vm.InitializeAsync();
     }

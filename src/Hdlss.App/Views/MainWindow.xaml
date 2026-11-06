@@ -6,7 +6,7 @@
         xmlns:vm="clr-namespace:Hdlss.App.ViewModels"
         Style="{StaticResource AppWindow}"
         Title="{Binding [app.title], Source={x:Static app:Loc.Instance}}"
-        Icon="/app.ico" Width="1440" Height="900" MinWidth="1000" MinHeight="640"
+        Icon="pack://application:,,,/HDLSS5;component/app.ico" Width="1440" Height="900" MinWidth="1000" MinHeight="640"
         WindowStartupLocation="CenterScreen">
     <Window.InputBindings>
         <KeyBinding Key="Escape" Command="{Binding GoBackCommand}" />
@@ -33,7 +33,7 @@
                                 <Setter TargetName="b" Property="Background" Value="{StaticResource CardHover}" />
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="b" Property="BorderBrush" Value="{StaticResource Accent}" />
+                                <Setter TargetName="b" Property="BorderBrush" Value="{DynamicResource Accent}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -59,7 +59,7 @@
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter Property="Foreground" Value="{StaticResource Text}" />
-                                <Setter TargetName="b" Property="BorderBrush" Value="{StaticResource Accent}" />
+                                <Setter TargetName="b" Property="BorderBrush" Value="{DynamicResource Accent}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -90,7 +90,15 @@
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                                         <TextBlock Text="{Binding Label}" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{StaticResource Muted}" />
-                                        <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding Selected}" MinWidth="260" />
+                                        <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding Selected}" MinWidth="260"
+                                                  Visibility="{Binding IsFixed, Converter={StaticResource Vis}}" />
+                                        <!-- Choices plus a typed value (e.g. peak nits): commits on Enter or when focus leaves -->
+                                        <ComboBox ItemsSource="{Binding Choices}" IsEditable="True" IsTextSearchEnabled="False" MinWidth="260"
+                                                  Text="{Binding Text, UpdateSourceTrigger=LostFocus}" ToolTip="{Binding Hint}"
+                                                  KeyDown="EditableOption_KeyDown" DropDownClosed="EditableOption_Commit"
+                                                  Visibility="{Binding IsEditable, Converter={StaticResource Vis}}" />
+                                        <TextBlock Text="{Binding Error}" Foreground="{StaticResource Warn}" VerticalAlignment="Center" Margin="10,0,0,0"
+                                                   Visibility="{Binding HasError, Converter={StaticResource Vis}}" />
                                     </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -99,9 +107,9 @@
                                 Visibility="{Binding HasBlockers, Converter={StaticResource Vis}}">
                             <TextBlock Text="{Binding BlockersText}" Foreground="#F0A6A0" FontSize="13" />
                         </Border>
-                        <Border Background="#0C2A33" CornerRadius="6" Padding="10,6" Margin="0,0,0,10"
+                        <Border Background="{DynamicResource AccentTint}" CornerRadius="6" Padding="10,6" Margin="0,0,0,10"
                                 Visibility="{Binding IsUnavailable, Converter={StaticResource Vis}}">
-                            <TextBlock Text="{Binding UnavailableText}" Foreground="{StaticResource Accent}" FontSize="13" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding UnavailableText}" Foreground="{DynamicResource Accent}" FontSize="13" TextWrapping="Wrap" />
                         </Border>
                         <StackPanel Orientation="Horizontal">
                             <Button Style="{StaticResource Primary}" Content="Importa in HDLSS5" Command="{Binding ImportExternalCommand}"
@@ -143,7 +151,7 @@
 
         <!-- ═════════════ Navigation rail ═════════════ -->
         <DockPanel Grid.RowSpan="3" Background="{StaticResource Panel}">
-            <Image DockPanel.Dock="Top" Source="/logo.png" Width="34" Height="34" Margin="12,18,12,22" RenderOptions.BitmapScalingMode="HighQuality"
+            <Image DockPanel.Dock="Top" Source="{DynamicResource LogoImage}" Width="34" Height="34" Margin="12,18,12,22" RenderOptions.BitmapScalingMode="HighQuality"
                    ToolTip="{Binding GpuText}" />
             <StackPanel DockPanel.Dock="Bottom" Margin="0,0,0,12">
                 <ToggleButton IsChecked="{Binding Advanced}" Cursor="Hand" Margin="6,2" Background="Transparent" BorderThickness="0"
@@ -161,8 +169,8 @@
                                     <Setter TargetName="b" Property="Background" Value="{StaticResource CardHover}" />
                                 </Trigger>
                                 <Trigger Property="IsChecked" Value="True">
-                                    <Setter TargetName="icon" Property="Foreground" Value="{StaticResource Accent}" />
-                                    <Setter TargetName="label" Property="Foreground" Value="{StaticResource Accent}" />
+                                    <Setter TargetName="icon" Property="Foreground" Value="{DynamicResource Accent}" />
+                                    <Setter TargetName="label" Property="Foreground" Value="{DynamicResource Accent}" />
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
@@ -311,9 +319,9 @@
                                 <RadioButton Style="{StaticResource PathCard}" GroupName="method" IsChecked="{Binding IsMethodReShade}">
                                     <StackPanel>
                                         <DockPanel>
-                                            <Border DockPanel.Dock="Right" Background="#0C2A33" CornerRadius="8" Padding="8,2"
+                                            <Border DockPanel.Dock="Right" Background="{DynamicResource AccentTint}" CornerRadius="8" Padding="8,2"
                                                     Visibility="{Binding ReShadeRecommended, Converter={StaticResource Vis}}">
-                                                <TextBlock Text="Consigliato" FontSize="11" Foreground="{StaticResource Accent}" />
+                                                <TextBlock Text="Consigliato" FontSize="11" Foreground="{DynamicResource Accent}" />
                                             </Border>
                                             <TextBlock Text="Tramite ReShade" FontSize="16" FontWeight="SemiBold" />
                                         </DockPanel>
@@ -323,9 +331,9 @@
                                 <RadioButton Style="{StaticResource PathCard}" GroupName="method" IsChecked="{Binding IsMethodOpti}">
                                     <StackPanel>
                                         <DockPanel>
-                                            <Border DockPanel.Dock="Right" Background="#0C2A33" CornerRadius="8" Padding="8,2"
+                                            <Border DockPanel.Dock="Right" Background="{DynamicResource AccentTint}" CornerRadius="8" Padding="8,2"
                                                     Visibility="{Binding OptiRecommended, Converter={StaticResource Vis}}">
-                                                <TextBlock Text="Consigliato" FontSize="11" Foreground="{StaticResource Accent}" />
+                                                <TextBlock Text="Consigliato" FontSize="11" Foreground="{DynamicResource Accent}" />
                                             </Border>
                                             <TextBlock Text="Tramite OptiScaler" FontSize="16" FontWeight="SemiBold" />
                                         </DockPanel>
@@ -341,7 +349,7 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                <TextBlock Text="&#xE73E;" FontFamily="{StaticResource IconFont}" Foreground="{StaticResource Accent}" Margin="0,2,8,0" />
+                                                <TextBlock Text="&#xE73E;" FontFamily="{StaticResource IconFont}" Foreground="{DynamicResource Accent}" Margin="0,2,8,0" />
                                                 <TextBlock Text="{Binding}" />
                                             </StackPanel>
                                         </DataTemplate>
@@ -594,7 +602,7 @@
                                                                 <ColumnDefinition Width="*" />
                                                             </Grid.ColumnDefinitions>
                                                             <TextBlock Text="{Binding Kind}" FontSize="14" Foreground="{StaticResource Text}" Margin="0,0,24,0" />
-                                                            <TextBlock Grid.Column="1" Text="{Binding Current}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Accent}" Margin="0,0,16,0" />
+                                                            <TextBlock Grid.Column="1" Text="{Binding Current}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Accent}" Margin="0,0,16,0" />
                                                             <TextBlock Grid.Column="2" Text="{Binding StateText}" FontSize="14" Margin="0,0,16,0">
                                                                 <TextBlock.Style>
                                                                     <Style TargetType="TextBlock">

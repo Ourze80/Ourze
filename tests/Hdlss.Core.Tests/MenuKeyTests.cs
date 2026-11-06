@@ -1,3 +1,4 @@
+using Hdlss.Core;
 using Hdlss.Core.Components;
 using Hdlss.Core.IO;
 using Xunit;
@@ -70,5 +71,33 @@ public class MenuKeyTests : IDisposable
         _f.Engine.Apply(merged.Build());
         Assert.Contains("ShortcutKey=0x77", _f.Read("OptiScaler.ini"));
         Assert.Contains("Scale=1.5", _f.Read("OptiScaler.ini"));
+    }
+
+    [Fact]
+    public void File_replaced_by_another_build_of_the_same_component_is_updated()
+    {
+        int n = 0; string Source(string text) => _f.PayloadFile($"refw{++n}.dll", text);
+        var b = _f.Builder(); b.AddFile("dinput8.dll", Source("REFW build 1")); _f.Engine.Apply(b.Build());
+        _f.GameFile("dinput8.dll", "REFW build 2 (mod manager)");
+
+        var blocked = _f.Builder();
+        Assert.Throws<BlockedException>(() => blocked.AddFile("dinput8.dll", Source("REFW build 3")));
+
+        var update = _f.Builder();
+        update.AddFile("dinput8.dll", Source("REFW build 3"), sameKind: path => File.ReadAllText(path).StartsWith("REFW"));
+        _f.Engine.Apply(update.Build());
+        Assert.Equal("REFW build 3", _f.Read("dinput8.dll"));
+
+        // Another tool already put the newest build in place: recorded, not "already up to date".
+        _f.GameFile("dinput8.dll", "REFW build 4");
+        var same = _f.Builder(version: "4");
+        same.AddFile("dinput8.dll", Source("REFW build 4"), sameKind: path => File.ReadAllText(path).StartsWith("REFW"));
+        var plan = same.Build();
+        Assert.Single(plan.Files);
+        _f.Engine.Apply(plan);
+        Assert.Equal("4", _f.State().Get("comp")!.Version);
+
+        _f.Engine.Apply(_f.Removal("comp"));        // still the component's file: removal deletes it
+        Assert.False(File.Exists(Path.Combine(_f.Game, "dinput8.dll")));
     }
 }

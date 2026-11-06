@@ -17,7 +17,28 @@ public sealed record ComponentStatus(ComponentStatusKind Kind, string Detail, st
 
 public enum ComponentCategory { NeuralRendering, Upscaling, Hdr, Shaders, FrameGeneration, Loaders }
 
-public sealed record ComponentOption(string Key, string Label, IReadOnlyList<(string Value, string Label)> Choices, string Default);
+/// <param name="Custom">When set, the user may also type a whole number in this range besides the choices.</param>
+public sealed record ComponentOption(string Key, string Label, IReadOnlyList<(string Value, string Label)> Choices, string Default,
+    OptionRange? Custom = null)
+{
+    /// <summary>The value as the component reads it: one of the choices, or a valid custom number.</summary>
+    public string? Normalize(string? value) =>
+        value != null && Choices.Any(c => c.Value == value) ? value : Custom?.Normalize(value);
+}
+
+/// <summary>Whole number typed by the user, e.g. "1234", "1234 nit".</summary>
+public sealed record OptionRange(int Min, int Max, string Unit)
+{
+    public string? Normalize(string? text)
+    {
+        var digits = text?.Replace(Unit, "", StringComparison.OrdinalIgnoreCase).Replace(".", "").Replace(" ", "").Trim();
+        return int.TryParse(digits, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var n)
+            && n >= Min && n <= Max ? n.ToString(System.Globalization.CultureInfo.InvariantCulture) : null;
+    }
+
+    public string Label(string value) => $"{value} {Unit}";
+    public string Hint => $"Scrivi un numero da {Min} a {Max}";
+}
 
 /// <summary>Shared services handed to components (no static singletons, unlike 1.x).</summary>
 public sealed class Services(AppPaths paths, AppSettings settings, ContentStore store, StateStore states,
