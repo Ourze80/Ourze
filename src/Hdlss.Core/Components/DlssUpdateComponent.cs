@@ -101,7 +101,7 @@ public sealed class DlssUpdateComponent : ComponentBase
 
     protected override void CheckBlockers(GameContext ctx, List<string> blockers)
     {
-        if (Inspect(ctx, null).Count == 0) blockers.Add("Il gioco non contiene DLL DLSS da aggiornare.");
+        if (Inspect(ctx, null).Count == 0) blockers.Add("Nessuna DLL DLSS nel gioco: non c'è nulla da aggiornare. Questa scheda serve ai giochi che includono DLSS.");
     }
 
     private static Dictionary<string, DlssBuild> Choose(Dictionary<string, List<DlssBuild>> all, Version? wanted)

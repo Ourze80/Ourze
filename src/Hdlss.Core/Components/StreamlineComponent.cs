@@ -127,7 +127,7 @@ public sealed class StreamlineComponent : ComponentBase
 
     protected override void CheckBlockers(GameContext ctx, List<string> blockers)
     {
-        if (Folders(ctx).Count == 0) blockers.Add("Il gioco non usa NVIDIA Streamline 2.x.");
+        if (Folders(ctx).Count == 0) blockers.Add("Streamline 2.x assente: il gioco non usa NVIDIA Streamline 2.x, quindi non c'è nulla da aggiornare.");
     }
 
     public override async Task<ChangePlan> PlanInstallAsync(GameContext ctx, IReadOnlyDictionary<string, string> options,

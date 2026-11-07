@@ -166,12 +166,15 @@ public abstract class ComponentBase : IComponent
     {
         var list = new List<string>();
         foreach (var req in Requires.Where(r => !ctx.Installed(r)))
-            list.Add($"Installa prima: {ComponentCatalog.NameOf(req)}.");
+            list.Add($"Manca {ComponentCatalog.NameOf(req)}: questo componente ne ha bisogno per funzionare. Installalo prima dalla sua scheda.");
         CheckBlockers(ctx, list);
         return list;
     }
 
     protected virtual void CheckBlockers(GameContext ctx, List<string> blockers) { }
+
+    /// <summary>For a managed component: the file another program has since replaced (null when none). Hashes files.</summary>
+    public virtual string? TakenOverBy(GameContext ctx) => null;
 
     public abstract Task<ChangePlan> PlanInstallAsync(GameContext ctx, IReadOnlyDictionary<string, string> options,
         IProgress<OperationProgress>? progress, CancellationToken cancel);

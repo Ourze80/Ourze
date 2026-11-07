@@ -23,7 +23,6 @@
   "component.install": "Install",
   "component.update": "Update",
   "component.remove": "Remove",
-  "component.removeForce": "Remove anyway",
   "legacy.title": "HDLSS5 1.x installations found",
   "legacy.desc": "Installed by the previous version. «Adopt» lets 2.0 manage them without touching the game; «Restore» returns them to their original state using the 1.x backups.",
   "legacy.restore": "Restore",

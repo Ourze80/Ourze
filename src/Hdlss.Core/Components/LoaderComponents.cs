@@ -28,12 +28,12 @@ public sealed class MfgUnlockComponent : ComponentBase
     protected override void CheckBlockers(GameContext ctx, List<string> blockers)
     {
         ReShadeAddons.RequireAddonSupport(ctx, blockers);
-        if (ctx.Gpu.Series == 50) blockers.Add("RTX 5000 supporta già MFG in modo nativo: non serve.");
-        else if (ctx.Gpu.Series != 40) blockers.Add("Richiede una GPU RTX 4000.");
+        if (ctx.Gpu.Series == 50) blockers.Add("Mod non necessaria: le RTX 5000 hanno già MFG in modo nativo. Non c'è nulla da installare.");
+        else if (ctx.Gpu.Series != 40) blockers.Add("Serve una GPU RTX 4000: questa mod aggiunge MFG alle RTX 4000 e non funziona con altre schede. Non è disponibile su questo PC.");
         var others = ReShadeAddons.ForeignAddons(ctx, "mfg|framegen").Where(a => !Path.GetFileName(a).Equals(AddonName, StringComparison.OrdinalIgnoreCase)).ToList();
-        if (others.Count > 0) blockers.Add($"Altro add-on MFG presente: {string.Join(", ", others)}.");
+        if (others.Count > 0) blockers.Add($"Altro add-on MFG presente: due add-on MFG insieme si disturbano ({string.Join(", ", others)}). Rimuovi quello dell'altro programma.");
         if (!HasFrameGeneration(ctx))
-            blockers.Add("Nessuna DLSS Frame Generation trovata nel gioco (nvngx_dlssg.dll / sl.dlss_g.dll).");
+            blockers.Add("DLSS Frame Generation assente nel gioco: la mod ne ha bisogno e non trova nvngx_dlssg.dll né sl.dlss_g.dll. Serve un gioco che la supporti.");
     }
 
     /// <summary>
@@ -96,7 +96,7 @@ public sealed partial class AsiLoaderComponent : ComponentBase
     protected override void CheckBlockers(GameContext ctx, List<string> blockers)
     {
         var present = Present(ctx);
-        if (present.Count > 1) blockers.Add($"Più ASI Loader presenti: {string.Join(", ", present)}. Risolvi il doppione.");
+        if (present.Count > 1) blockers.Add($"Più ASI Loader presenti: il gioco ne carica uno solo ({string.Join(", ", present)}). Tieni un solo loader e rimuovi gli altri.");
     }
 
     public override async Task<ChangePlan> PlanInstallAsync(GameContext ctx, IReadOnlyDictionary<string, string> options,
@@ -164,10 +164,10 @@ public sealed class ReFrameworkComponent : ComponentBase
 
     protected override void CheckBlockers(GameContext ctx, List<string> blockers)
     {
-        if (Identify(ctx.Game) == null) { blockers.Add("Gioco RE Engine non riconosciuto dall'eseguibile."); return; }
+        if (Identify(ctx.Game) == null) { blockers.Add("Gioco RE Engine non riconosciuto: REFramework funziona solo con alcuni giochi RE Engine e l'eseguibile scelto non risulta tra questi. Controlla l'eseguibile in «Eseguibile»."); return; }
         var dll = PathGuard.Resolve(ctx.Folder, "dinput8.dll");
         if (File.Exists(dll) && !Recognized(dll) && ctx.State.OwnerOf("dinput8.dll") is not ComponentId)
-            blockers.Add("dinput8.dll appartiene a un altro loader (es. ASI Loader): rimuovilo prima.");
+            blockers.Add("dinput8.dll già usata da un altro loader: REFramework ha bisogno dello stesso file (per esempio c'è l'ASI Loader). Rimuovi prima l'altro loader.");
     }
 
     public override async Task<string?> LatestVersionAsync(GameContext ctx, IReadOnlyDictionary<string, string> options, CancellationToken cancel)
@@ -233,23 +233,25 @@ public sealed partial class Ue4ssComponent : ComponentBase
 
     protected override void CheckBlockers(GameContext ctx, List<string> blockers)
     {
-        if (ctx.Game.Engine == EngineKind.Unknown) blockers.Add("UE4SS è solo per giochi Unreal Engine: seleziona l'eseguibile in Binaries/Win64.");
-        if (File.Exists(PathGuard.Resolve(ctx.Folder, "override.txt"))) blockers.Add("override.txt di UE4SS presente: installazione personalizzata da gestire a mano.");
+        if (ctx.Game.Engine == EngineKind.Unknown) blockers.Add("UE4SS serve solo per Unreal Engine: questo gioco non risulta fatto con Unreal. Se lo è, scegli l'eseguibile in Binaries/Win64 da «Eseguibile».");
+        if (File.Exists(PathGuard.Resolve(ctx.Folder, "override.txt"))) blockers.Add("Installazione UE4SS personalizzata: c'è un file override.txt, quindi HDLSS5 non tocca nulla. Gestiscila a mano.");
         bool flat = File.Exists(PathGuard.Resolve(ctx.Folder, "UE4SS.dll")), nested = File.Exists(PathGuard.Resolve(ctx.Folder, "ue4ss/UE4SS.dll"));
-        if (flat && nested) blockers.Add("Due copie di UE4SS presenti: risolvi il doppione.");
+        if (flat && nested) blockers.Add("Due copie di UE4SS nel gioco: una in ue4ss\\ e una nella cartella del gioco. Tienine una sola: rimuovi quella che non usi, da questa scheda se l'ha installata HDLSS5, altrimenti con il programma che l'ha installata.");
         if (!ctx.Installed(Id))
         {
-            if (flat || nested) blockers.Add("UE4SS installato da altro software: aggiornalo con il suo metodo.");
-            else if (File.Exists(PathGuard.Resolve(ctx.Folder, "dwmapi.dll"))) blockers.Add("dwmapi.dll già presente (altro loader): nessuna sovrascrittura.");
+            if (flat || nested) blockers.Add("UE4SS già presente: è stato installato a mano o da un altro programma (per esempio UE Mod Manager). Aggiornalo con lo stesso metodo.");
+            else if (File.Exists(PathGuard.Resolve(ctx.Folder, "dwmapi.dll"))) blockers.Add("dwmapi.dll già occupata da un altro loader: UE4SS usa lo stesso file e HDLSS5 non lo sovrascrive. Rimuovi prima l'altro loader.");
         }
         else if (ChangedByOthers(ctx) is { } rel)
-            blockers.Add($"UE4SS ({rel}) è stato cambiato da un altro programma, per esempio UE Mod Manager con la sua build per questo gioco: aggiornalo con quello. HDLSS5 non lo sovrascrive.");
+            blockers.Add($"UE4SS ({rel}) modificato da un altro programma: per esempio UE Mod Manager, con la sua build per questo gioco. HDLSS5 non lo sovrascrive. Aggiornalo con quel programma.");
     }
 
     /// <summary>
     /// A recorded runtime or proxy whose content is no longer what HDLSS5 wrote: another manager
     /// (UE Mod Manager ships game-specific UE4SS builds) has taken over the install.
     /// </summary>
+    public override string? TakenOverBy(GameContext ctx) => ChangedByOthers(ctx);
+
     internal string? ChangedByOthers(GameContext ctx)
     {
         if (ctx.State.Get(Id) is not { } record) return null;

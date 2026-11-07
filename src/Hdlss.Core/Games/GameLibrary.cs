@@ -106,7 +106,7 @@ public sealed partial class GameLibrary(AppSettings settings, Log log)
                     game.Exe = full;
                     MigrateToolTarget(game, profile, accept);
                 }
-                else game.Warnings.Add("L'eseguibile salvato non esiste più: scelto automaticamente.");
+                else game.Warnings.Add("Eseguibile salvato non trovato: il file non esiste più e HDLSS5 ne ha scelto un altro. Controllalo in «Eseguibile».");
             }
             catch (UnsafePathException ex) { game.Warnings.Add(ex.Message); }
         }
@@ -114,8 +114,8 @@ public sealed partial class GameLibrary(AppSettings settings, Log log)
         {
             var (exe, certain) = ExecutableDetector.Pick(game.Root, accept);
             game.Exe = exe;
-            if (exe.Length == 0) game.Warnings.Add("Nessun eseguibile x64 trovato: sceglilo manualmente.");
-            else if (!certain) game.Warnings.Add("Eseguibile scelto per dimensione: verificalo in «Eseguibile».");
+            if (exe.Length == 0) game.Warnings.Add("Nessun eseguibile x64 trovato: HDLSS5 non ha trovato un .exe a 64 bit del gioco. Scegli quello giusto in «Eseguibile».");
+            else if (!certain) game.Warnings.Add("Eseguibile da verificare: HDLSS5 ha scelto il file più grande perché non c'erano indizi migliori. Controllalo in «Eseguibile».");
         }
         if (game.HasExe)
         {
@@ -153,7 +153,7 @@ public sealed partial class GameLibrary(AppSettings settings, Log log)
             {
                 var full = profile.ModFolder == "." ? Path.GetFullPath(game.Root) : PathGuard.Resolve(game.Root, profile.ModFolder);
                 if (Directory.Exists(full)) { game.ModFolder = full; return; }
-                game.Warnings.Add("La cartella delle mod salvata non esiste più: scelta automaticamente.");
+                game.Warnings.Add("Cartella delle mod non trovata: quella salvata non esiste più e HDLSS5 ne ha scelta un'altra. Controllala in «Eseguibile».");
             }
             catch (UnsafePathException ex) { game.Warnings.Add(ex.Message); }
         }
@@ -165,13 +165,13 @@ public sealed partial class GameLibrary(AppSettings settings, Log log)
                 && HasManagedState?.Invoke(old) == true && HasManagedState?.Invoke(game.ExeFolder) != true)
             {
                 game.ModFolder = old; game.ModFolderAuto = true;
-                game.Warnings.Add($"HDLSS5 gestisce componenti in {PathGuard.RelativeTo(game.Root, old)}, ma il gioco carica le DLL dalla cartella dell'eseguibile: rimuovili, poi in «Eseguibile» scegli come cartella delle mod quella dell'eseguibile e reinstallali.");
+                game.Warnings.Add($"Mod nella cartella sbagliata ({PathGuard.RelativeTo(game.Root, old)}): HDLSS5 gestisce componenti lì, ma il gioco carica le DLL dalla cartella dell'eseguibile. Rimuovili, poi in «Eseguibile» scegli come cartella delle mod quella dell'eseguibile e reinstallali.");
             }
             return;
         }
         if (HasManagedState?.Invoke(game.ExeFolder) == true)
         {
-            game.Warnings.Add($"Il gioco carica le DLL da {PathGuard.RelativeTo(game.Root, auto)}, ma HDLSS5 gestisce già componenti nella cartella dell'eseguibile: rimuovili e scegli la cartella delle mod in «Eseguibile».");
+            game.Warnings.Add($"Cartella delle mod sbagliata: il gioco carica le DLL da {PathGuard.RelativeTo(game.Root, auto)}, ma HDLSS5 gestisce già componenti nella cartella dell'eseguibile. Rimuovili, poi scegli la cartella delle mod in «Eseguibile».");
             return;
         }
         game.ModFolder = auto; game.ModFolderAuto = true;
