@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 
@@ -6,12 +7,12 @@ namespace Hdlss.Core.Hardware;
 public sealed record GpuInfo(string Name, string Driver, int Series)
 {
     public static readonly Version MinimumDriver = new(616, 56);
-    public static GpuInfo Unknown { get; } = new("GPU NVIDIA RTX non rilevata", "", 0);
+    public static GpuInfo Unknown => new(Tx.Get("gpu.unknown"), "", 0);
 
     public bool SupportsNr => Series is 40 or 50;
     public bool DriverTooOld => Version.TryParse(Driver, out var v) && v < MinimumDriver;
 
-    public override string ToString() => Series == 0 ? Name : $"{Name} · driver {Driver}";
+    public override string ToString() => Series == 0 ? Name : Tx.Get("gpu.driver", Name, Driver);
 
     public static GpuInfo Detect()
     {

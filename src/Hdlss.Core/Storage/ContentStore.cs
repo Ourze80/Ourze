@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using Hdlss.Core.IO;
 
 namespace Hdlss.Core.Storage;
@@ -32,7 +33,7 @@ public sealed class ContentStore(string root)
         if (!FileHash.Equal(FileHash.OfFile(temp), hash))
         {
             File.Delete(temp);
-            throw new IOException($"Il file è cambiato durante la copia: {file}");
+            throw new IOException(Tx.Get("store.changedDuringCopy", file));
         }
         File.Move(temp, target, overwrite: true);
         File.SetAttributes(target, FileAttributes.ReadOnly);
@@ -56,8 +57,8 @@ public sealed class ContentStore(string root)
     public string Open(string hash)
     {
         var path = PathOf(hash);
-        if (!File.Exists(path)) throw new HdlssException($"Copia di backup mancante nell'archivio: {hash[..12]}…");
-        if (!FileHash.Equal(FileHash.OfFile(path), hash)) throw new HdlssException($"Copia di backup danneggiata: {hash[..12]}…");
+        if (!File.Exists(path)) throw new HdlssException(Tx.Get("store.backupMissing", hash[..12]));
+        if (!FileHash.Equal(FileHash.OfFile(path), hash)) throw new HdlssException(Tx.Get("store.backupCorrupt", hash[..12]));
         return path;
     }
 

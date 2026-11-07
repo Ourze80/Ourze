@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using System.Diagnostics;
 using System.Text.Json;
 using Hdlss.Core.Games;
@@ -38,11 +39,11 @@ public static class Vulkan
 
     public static ProcessStartInfo StartInfo(GameContext ctx)
     {
-        if (!UsesLayers(ctx)) throw new BlockedException("Installa ReShade per Vulkan prima di avviare con i layer.");
+        if (!UsesLayers(ctx)) throw new BlockedException(Tx.Get("vk.installFirst"));
         foreach (var record in ctx.State.Components.Values)
             foreach (var f in record.Files.Where(f => f.Path.StartsWith(Dir + "/", StringComparison.OrdinalIgnoreCase)))
                 if (!FileHash.Equal(FileHash.OfFileOrNull(PathGuard.Resolve(ctx.Folder, f.Path)), f.After))
-                    throw new HdlssException($"Layer modificato: {f.Path}. Reinstalla il componente.");
+                    throw new HdlssException(Tx.Get("vk.layerModified", f.Path));
         var layers = ReShadeLayer;
         if (ctx.State.Components.Values.Any(c => c.FindFile(FeedJson) != null)) layers += ";" + FeedLayer;
         var psi = new ProcessStartInfo(ctx.Game.Exe) { WorkingDirectory = ctx.Game.ExeFolder, UseShellExecute = false };
@@ -77,7 +78,7 @@ public static class GameLauncher
         if (game.Store == GameStore.Steam && System.Text.RegularExpressions.Regex.IsMatch(game.Id, "^[0-9]+$"))
         {
             var steam = Path.Combine(GameLibrary.SteamRoot(), "steam.exe");
-            if (!File.Exists(steam)) throw new HdlssException("Steam non trovato.");
+            if (!File.Exists(steam)) throw new HdlssException(Tx.Get("vk.noSteam"));
             var args = "-applaunch " + game.Id;
             var api = settings.Profile(game.Id).ApiOverride;
             if (api != null && game.Engine is EngineKind.Unreal5 or EngineKind.Unreal4 or EngineKind.UnrealUnverified)
@@ -85,7 +86,7 @@ public static class GameLauncher
             Process.Start(new ProcessStartInfo(steam, args) { UseShellExecute = true });
             return;
         }
-        if (!game.HasExe) throw new HdlssException("Eseguibile del gioco non trovato.");
+        if (!game.HasExe) throw new HdlssException(Tx.Get("vk.noExe"));
         Process.Start(new ProcessStartInfo(game.Exe) { WorkingDirectory = game.ExeFolder, UseShellExecute = true });
     }
 
@@ -98,7 +99,7 @@ public static class GameLauncher
         {
             using (p)
             {
-                if (p.Id != Environment.ProcessId) throw new BlockedException($"Chiudi {game.Name} prima di modificare i file.");
+                if (p.Id != Environment.ProcessId) throw new BlockedException(Tx.Get("vk.close", game.Name));
             }
         }
     }

@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using System.Text.Json;
 using Hdlss.Core.Diagnostics;
 using Hdlss.Core.IO;
@@ -40,20 +41,20 @@ public sealed class LegacyInstall
         "hdr-unlock-dlss.json" => "OptiScaler (1.x)",
         "hdlss-nr-feeder.json" => "Feeder NR (1.x)",
         "hdlss-renodx-nr.json" => "RenoDX NR (1.x)",
-        "hdr-unlock-nr-model.json" => "Modello NR (1.x)",
+        "hdr-unlock-nr-model.json" => Tx.Get("leg.title.nrModel"),
         "hdlss-mfg-unlock.json" => "MFG Unlock (1.x)",
         "hdlss-ue4ss.json" => "UE4SS (1.x)",
         "hdlss-asi-loader.json" => "ASI Loader (1.x)",
         "hdlss-streamline.json" => "Streamline / DLSS-G (1.x)",
-        "hdr-unlock-dlls.json" => "DLL DLSS sostituite (1.x)",
+        "hdr-unlock-dlls.json" => Tx.Get("leg.title.dlls"),
         "hdlss-reframework.json" => "REFramework (1.x)",
-        "hdr-unlock-reshade-key.json" => "Tasto menu ReShade (1.x)",
+        "hdr-unlock-reshade-key.json" => Tx.Get("leg.title.menuKey"),
         "hdlss-renodx-engine.json" => "HDR Engine.ini RenoDX (1.x)",
         "hdr-unlock-renodx.json" => "RenoDX HDR (1.x)",
         "hdr-unlock-reshade.json" => "ReShade (1.x)",
-        _ when Marker.StartsWith("hdr-unlock-effects-", StringComparison.OrdinalIgnoreCase) => $"Shader ReShade «{Marker[19..^5]}» (1.x)",
+        _ when Marker.StartsWith("hdr-unlock-effects-", StringComparison.OrdinalIgnoreCase) => Tx.Get("leg.title.shader", Marker[19..^5]),
         _ when Marker.Contains("reshade", StringComparison.OrdinalIgnoreCase) || Marker.Contains("renodx", StringComparison.OrdinalIgnoreCase) => "ReShade/RenoDX (1.x)",
-        _ => $"Componente 1.x ({Marker})",
+        _ => Tx.Get("leg.title.other", Marker),
     } + (Release.Length is > 0 and <= 40 && !System.Text.RegularExpressions.Regex.IsMatch(Release, "^[0-9a-f]{40}$") ? $" · {Release}" : "");
 }
 
@@ -126,7 +127,7 @@ public static class LegacyInstalls
     public static ChangePlan PlanAdopt(LegacyInstall install, string componentId, string componentName, string legacyData,
         ContentStore store, GameState state, string? stamp, string gameName)
     {
-        if (state.Get(componentId) != null) throw new BlockedException("Il componente è già gestito da HDLSS5 2.0 in questo gioco.");
+        if (state.Get(componentId) != null) throw new BlockedException(Tx.Get("leg.alreadyManaged"));
         var record = new ComponentRecord
         {
             Id = componentId, Name = componentName, Version = install.Release.Length > 0 ? install.Release + " (da 1.x)" : "da 1.x",
@@ -137,29 +138,29 @@ public static class LegacyInstalls
         {
             var full = PathGuard.Resolve(install.Folder, f.Name);
             var current = FileHash.OfFileOrNull(full);
-            if (f.Name.EndsWith(".ini", StringComparison.OrdinalIgnoreCase)) { notes.Add($"{f.Name}: configurazione lasciata com'è."); continue; }
-            if (current == null || !FileHash.Equal(current, f.After)) { notes.Add($"{f.Name}: cambiato dopo la 1.x, non adottato."); continue; }
+            if (f.Name.EndsWith(".ini", StringComparison.OrdinalIgnoreCase)) { notes.Add(Tx.Get("leg.keepIni", f.Name)); continue; }
+            if (current == null || !FileHash.Equal(current, f.After)) { notes.Add(Tx.Get("leg.changedAfter", f.Name)); continue; }
             var owner = state.OwnerOf(PathGuard.Normalize(f.Name));
-            if (owner != null) throw new BlockedException($"{f.Name} è già gestito da «{owner}».");
+            if (owner != null) throw new BlockedException(Tx.Get("leg.alreadyOwned", f.Name, owner));
             string? before = null;
             if (f.Before != null)
             {
                 var backup = f.Backup == null ? null : PathGuard.Resolve(legacyData, f.Backup);
                 if (backup == null || !File.Exists(backup) || !FileHash.Equal(FileHash.OfFile(backup), f.Before))
-                    throw new HdlssException($"Backup 1.x mancante o modificato per {f.Name}: usa «Ripristina comunque» o verifica i file del gioco.");
+                    throw new HdlssException(Tx.Get("leg.backupMissing", f.Name));
                 before = store.Put(backup);
             }
             record.Files.Add(new FileRecord { Path = PathGuard.Normalize(f.Name), Before = before, After = current, Attributes = (FileAttributes)f.Attributes });
         }
-        if (record.Files.Count == 0) throw new HdlssException("Nessun file della 1.x è ancora intatto: niente da adottare.");
+        if (record.Files.Count == 0) throw new HdlssException(Tx.Get("leg.nothingIntact"));
         var plan = new ChangePlan
         {
             GameId = state.GameId, GameName = gameName, Folder = install.Folder, ComponentId = componentId,
-            ComponentName = componentName + " · adozione 1.x", Version = record.Version, StateStamp = stamp, Adopt = record,
+            ComponentName = componentName + Tx.Get("leg.adoptSuffix"), Version = record.Version, StateStamp = stamp, Adopt = record,
         };
         var marker = PathGuard.Resolve(install.Folder, install.Marker);
         plan.Files.Add(new FileOp { Path = install.Marker, NewHash = null, Expected = FileHash.OfFile(marker), Release = true });
-        plan.Notes.Add($"{record.Files.Count} file passano sotto la gestione di HDLSS5 2.0; nessun file del gioco viene modificato.");
+        plan.Notes.Add(Tx.Get("leg.adoptNote", record.Files.Count));
         plan.Notes.AddRange(notes);
         return plan;
     }
@@ -187,10 +188,10 @@ public static class LegacyInstalls
         var plan = new ChangePlan
         {
             GameId = state.GameId, GameName = gameName, Folder = install.Folder, ComponentId = "legacy:" + install.Marker,
-            ComponentName = install.Title + " · registro superato", IsRemoval = true, StateStamp = stamp,
+            ComponentName = install.Title + Tx.Get("leg.staleSuffix"), IsRemoval = true, StateStamp = stamp,
         };
         plan.Files.Add(new FileOp { Path = install.Marker, NewHash = null, Expected = FileHash.OfFile(PathGuard.Resolve(install.Folder, install.Marker)), Release = true });
-        plan.Notes.Add("I file sono stati cambiati da altro software dopo la 1.x: il registro non descrive più il gioco e viene archiviato. Nessun file del gioco cambia.");
+        plan.Notes.Add(Tx.Get("leg.staleNote"));
         return plan;
     }
 
@@ -209,25 +210,25 @@ public static class LegacyInstalls
             if (FileHash.Equal(current, f.Before)) continue;
             if (!FileHash.Equal(current, f.After))
             {
-                if (f.Name.EndsWith(".ini", StringComparison.OrdinalIgnoreCase)) { plan.Notes.Add($"{f.Name}: configurazione cambiata dopo l'installazione, conservata."); continue; }
-                if (!force) throw new BlockedException($"{f.Name} è cambiato dopo l'installazione 1.x. Usa «Ripristina comunque» per lasciarlo invariato.");
-                plan.Notes.Add($"{f.Name}: cambiato da altro software, lasciato invariato.");
+                if (f.Name.EndsWith(".ini", StringComparison.OrdinalIgnoreCase)) { plan.Notes.Add(Tx.Get("leg.iniChangedKept", f.Name)); continue; }
+                if (!force) throw new BlockedException(Tx.Get("leg.changedAfterInstall", f.Name));
+                plan.Notes.Add(Tx.Get("leg.changedOther", f.Name));
                 continue;
             }
             string? before = null;
             if (f.Before != null)
             {
-                if (f.Backup == null) throw new HdlssException($"Backup 1.x non indicato per {f.Name}.");
+                if (f.Backup == null) throw new HdlssException(Tx.Get("leg.noBackup", f.Name));
                 var backup = PathGuard.Resolve(legacyData, f.Backup);
                 if (!File.Exists(backup) || !FileHash.Equal(FileHash.OfFile(backup), f.Before))
-                    throw new HdlssException($"Backup 1.x mancante o modificato: {f.Name}. Verifica l'integrità del gioco dal launcher.");
+                    throw new HdlssException(Tx.Get("leg.backupBad", f.Name));
                 before = store.Put(backup);
             }
             plan.Files.Add(new FileOp { Path = PathGuard.Normalize(f.Name), NewHash = before, Expected = current, Attributes = (FileAttributes)f.Attributes, Release = true });
         }
         var marker = PathGuard.Resolve(install.Folder, install.Marker);
         plan.Files.Add(new FileOp { Path = install.Marker, NewHash = null, Expected = FileHash.OfFile(marker), Release = true });
-        plan.Notes.Add($"Stato ripristinato: {install.PreviousOwner}. I file di HDLSS 1.x in data/ non vengono toccati.");
+        plan.Notes.Add(Tx.Get("leg.restored", install.PreviousOwner));
         return plan;
     }
 }

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-HDLSS5 2.x: a portable Windows (x64) WPF app, .NET 8, that installs and manages DLSS 5 / Neural Rendering mods on PC games. Supported paths: ReShade + RenoDX NR, Feeder, OptiScaler. It also manages HDR mods, loaders (ASI Loader, UE4SS, REFramework) and NVIDIA DLL updates (DLSS, Streamline, NR model). The interface is Italian; texts on GitHub (README, release notes, `README.txt` shipped in the zip) are English.
+HDLSS5 2.x: a portable Windows (x64) WPF app, .NET 8, that installs and manages DLSS 5 / Neural Rendering mods on PC games. Supported paths: ReShade + RenoDX NR, Feeder, OptiScaler. It also manages HDR mods, loaders (ASI Loader, UE4SS, REFramework) and NVIDIA DLL updates (DLSS, Streamline, NR model). The interface is Italian, with an English option in Settings; texts on GitHub (README, release notes, `README.txt` shipped in the zip) are English.
 
 Branches: work happens on `v2`; `main` on GitHub (`giorgiobascialla-hub/Ourze`) is a merge of `v2`. Releases are `vX.Y.Z` tags on `main` with the portable zip and its `.sha256` attached.
 
@@ -52,7 +52,7 @@ Two projects: `src/Hdlss.Core` (all logic, no UI) and `src/Hdlss.App` (WPF, MVVM
 **App.**
 - `MainWindow.xaml` holds the library, the game page (component cards in tabs ReShade / OptiScaler / DLL / Altro) and the DLL page. Dialogs live in `Views/`.
 - ViewModels map Core statuses to UI state. Status brushes are looked up by resource key ("Accent", "Warn", "Danger", "Success").
-- Strings: `Loc` with `i18n/it.json` / `en.json` for some keys; most UI text is Italian literals in XAML/C#.
+- Strings: Italian and English. App text goes through `Loc` (`i18n/it.json` / `en.json`, XAML `{Binding [key], Source={x:Static app:Loc.Instance}}`, `Loc.T` / `Loc.F`); Core text through `Tx.Get` (`src/Hdlss.Core/Text/it.json` / `en.json`). The language is chosen in Settings: `Loc.Language` also sets `Tx.Selected`. Add every new key to both files (`TxTests` checks Core parity and placeholders). Log lines need no translation.
 
 **Theme and brand.**
 - `Themes/Dark.xaml` holds the palette and styles. It includes custom templates, for example a ComboBox template with an editable text box.

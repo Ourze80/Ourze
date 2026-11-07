@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 namespace Hdlss.Core.Transactions;
 
 /// <summary>One file change inside a game folder. Payloads are referenced by store hash.</summary>
@@ -17,9 +18,9 @@ public sealed class FileOp
     public bool NewOriginal { get; init; }
     public bool IsDelete => NewHash == null;
 
-    public override string ToString() => IsDelete ? $"Rimuovi  {Path}"
-        : IsConfig ? $"Modifica {Path}"
-        : Expected == null ? $"Aggiungi {Path}" : $"Sostituisci {Path} (backup)";
+    public override string ToString() => IsDelete ? Tx.Get("op.remove", Path)
+        : IsConfig ? Tx.Get("op.edit", Path)
+        : Expected == null ? Tx.Get("op.add", Path) : Tx.Get("op.replace", Path);
 }
 
 public enum IniEditKind { Set, SetIfMissing, ListAdd }
@@ -77,7 +78,7 @@ public sealed class ChangePlan
     {
         var lines = new List<string> { $"{GameName} · {ComponentName}{(Version.Length > 0 ? " · " + Version : "")}", Folder, "" };
         lines.AddRange(Files.Select(f => f.ToString()));
-        if (IniEdits.Count > 0) { lines.Add(""); lines.AddRange(IniEdits.Where(e => e.Applied).Select(e => (IsRemoval ? "Annulla  " : "Imposta  ") + e)); }
+        if (IniEdits.Count > 0) { lines.Add(""); lines.AddRange(IniEdits.Where(e => e.Applied).Select(e => (IsRemoval ? Tx.Get("op.iniUndo") : Tx.Get("op.iniSet")) + "  " + e)); }
         if (Notes.Count > 0) { lines.Add(""); lines.AddRange(Notes); }
         return string.Join(Environment.NewLine, lines);
     }

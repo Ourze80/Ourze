@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Hdlss.Core.IO;
+using Hdlss.Core.Text;
 using Hdlss.Core.Transactions;
 
 namespace Hdlss.Core.Components;
@@ -23,26 +24,26 @@ public static class Compatibility
         bool opti = s.OptiScalerProxy != null;
 
         if (s.ReShadeLoaders.Count > 1)
-            issues.Add(new($"ReShade è presente {s.ReShadeLoaders.Count} volte ({string.Join(", ", s.ReShadeLoaders)}): verrebbe caricato due volte.", false));
+            issues.Add(new(Tx.Get("compat.reshadeTwice", s.ReShadeLoaders.Count, string.Join(", ", s.ReShadeLoaders)), false));
 
         if (reshade != null && loader != null && ctx.Api != Games.GraphicsApi.Vulkan)
         {
             var desired = ReShadeComponent.DesiredLoader(ctx, loader);
             if (opti && !loader.Equals("ReShade64.dll", StringComparison.OrdinalIgnoreCase))
-                issues.Add(new($"ReShade ({loader}) e OptiScaler ({s.OptiScalerProxy}) si caricano separatamente: rischio di doppio aggancio e crash. Va caricato da OptiScaler.", true));
+                issues.Add(new(Tx.Get("compat.separate", loader, s.OptiScalerProxy), true));
             else if (!opti && loader.Equals("ReShade64.dll", StringComparison.OrdinalIgnoreCase))
-                issues.Add(new("ReShade è configurato per essere caricato da OptiScaler, che non c'è più: così non parte.", true));
+                issues.Add(new(Tx.Get("compat.optiGone"), true));
             else if (opti && !string.Equals(IniDocument.Load(PathGuard.Resolve(ctx.Folder, "OptiScaler.ini")).Get("Plugins", "LoadReshade"), "true", StringComparison.OrdinalIgnoreCase))
-                issues.Add(new("OptiScaler non è impostato per caricare ReShade (LoadReshade=false).", true));
+                issues.Add(new(Tx.Get("compat.loadReshadeOff"), true));
             else if (!string.Equals(desired, loader, StringComparison.OrdinalIgnoreCase) && !opti)
-                issues.Add(new($"ReShade dovrebbe usare {desired}.", true));
+                issues.Add(new(Tx.Get("compat.shouldUse", desired), true));
         }
         else if (reshade == null && opti && s.ReShadeLoaders.Any(l => FolderScan.ProxyNames.Contains(l, StringComparer.OrdinalIgnoreCase)))
-            issues.Add(new($"ReShade di un altro programma ({s.ReShadeLoaders[0]}) e OptiScaler si caricano separatamente. Importa ReShade in HDLSS5 e poi «Risolvi».", false));
+            issues.Add(new(Tx.Get("compat.foreignReshade", s.ReShadeLoaders[0]), false));
 
         // Two Neural Rendering passes: OptiScaler with NR on plus a ReShade NR add-on.
         if (opti && OptiScalerNrEnabled(ctx) && s.Addons.Any(a => Regex.IsMatch(Path.GetFileName(a), "renodx-dlss|dlss5-feed", RegexOptions.IgnoreCase)))
-            issues.Add(new("DLSS 5 è attivo sia in OptiScaler sia come add-on ReShade: due passaggi NR insieme non funzionano. Togline uno (OptiScaler Standard + RenoDX NR, oppure OptiScaler F5 senza add-on NR).", false));
+            issues.Add(new(Tx.Get("compat.twoNr"), false));
         return issues;
     }
 
@@ -58,7 +59,7 @@ public static class Compatibility
         if (!Check(ctx).Any(i => i.Fixable)) return null;
         var reshade = (ReShadeComponent)ComponentCatalog.Get(ReShadeComponent.ComponentId);
         var plan = reshade.PlanRelocate(ctx);
-        plan.Notes.Insert(0, "Adatto ReShade a OptiScaler per evitare il doppio caricamento. Add-on e impostazioni di ReShade restano.");
+        plan.Notes.Insert(0, Tx.Get("compat.fixNote"));
         return plan.IsEmpty ? null : plan;
     }
 }

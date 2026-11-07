@@ -1,4 +1,5 @@
 using Hdlss.Core.Diagnostics;
+using Hdlss.Core.Text;
 using Hdlss.Core.Transactions;
 
 namespace Hdlss.Core.Components;
@@ -9,7 +10,7 @@ public sealed class ComponentService(Services services)
     public static void CheckGlobal(GameContext ctx)
     {
         if (ctx.Game.ProtectedReason != null) throw new BlockedException(ctx.Game.ProtectedReason);
-        if (!IO.PeFile.IsPe64(ctx.Game.Exe) && !Games.XboxLibrary.IsDeclaredX64(ctx.Game, ctx.Game.Exe)) throw new BlockedException("L'eseguibile selezionato non è x64.");
+        if (!IO.PeFile.IsPe64(ctx.Game.Exe) && !Games.XboxLibrary.IsDeclaredX64(ctx.Game, ctx.Game.Exe)) throw new BlockedException(Tx.Get("svc.notX64"));
         if (ctx.Scan.AntiCheat != null) throw new BlockedException(ctx.Scan.AntiCheat);
         GameLauncher.EnsureClosed(ctx.Game);
     }
@@ -28,7 +29,7 @@ public sealed class ComponentService(Services services)
     public async Task<ChangePlan> PlanImportAsync(GameContext ctx, IComponent component, string file,
         IProgress<OperationProgress>? progress, CancellationToken cancel)
     {
-        if (component is not ILocalImport importer) throw new HdlssException($"{component.Name} non supporta l'importazione di file.");
+        if (component is not ILocalImport importer) throw new HdlssException(Tx.Get("svc.noImport", component.Name));
         CheckGlobal(ctx);
         var blockers = component.Blockers(ctx);
         if (blockers.Count > 0) throw new BlockedException(string.Join("\n", blockers));
@@ -38,10 +39,10 @@ public sealed class ComponentService(Services services)
     public ChangePlan PlanRemoval(GameContext ctx, string componentId, bool force = false)
     {
         CheckGlobal(ctx);
-        var record = ctx.State.Get(componentId) ?? throw new HdlssException("Il componente non è gestito da HDLSS5 in questo gioco.");
+        var record = ctx.State.Get(componentId) ?? throw new HdlssException(Tx.Get("svc.notManaged"));
         var dependents = ComponentCatalog.Dependents(ctx, componentId).ToList();
         if (dependents.Count > 0)
-            throw new BlockedException($"Rimuovi prima: {string.Join(", ", dependents.Select(d => d.Name))}.");
+            throw new BlockedException(Tx.Get("svc.removeFirst", string.Join(", ", dependents.Select(d => d.Name))));
         return RemovalPlanner.Plan(services.Store, ctx.State, ctx.StateStamp, ctx.Game.Name, record, force);
     }
 

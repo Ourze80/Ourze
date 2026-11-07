@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using System.Text.RegularExpressions;
 
 namespace Hdlss.Core.IO;
@@ -38,7 +39,7 @@ public static partial class PathGuard
         for (var cursor = full; cursor != null && !SameDirectory(cursor, top); cursor = Path.GetDirectoryName(cursor))
         {
             if ((File.Exists(cursor) || Directory.Exists(cursor)) && (File.GetAttributes(cursor) & FileAttributes.ReparsePoint) != 0)
-                throw new UnsafePathException(relative, "collegamento simbolico o junction non supportato");
+                throw new UnsafePathException(relative, Tx.Get("path.symlink"));
         }
         return full;
     }
@@ -51,7 +52,7 @@ public static partial class PathGuard
 
     public static string RelativeTo(string root, string file)
     {
-        if (!IsUnder(file, root)) throw new UnsafePathException(file, "fuori dalla cartella del gioco");
+        if (!IsUnder(file, root)) throw new UnsafePathException(file, Tx.Get("path.outside"));
         return Normalize(Path.GetRelativePath(root, file));
     }
 
@@ -59,5 +60,5 @@ public static partial class PathGuard
         string.Equals(a.TrimEnd(Path.DirectorySeparatorChar), b.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase);
 }
 
-public sealed class UnsafePathException(string path, string reason = "percorso non sicuro")
-    : HdlssException($"Percorso rifiutato ({reason}): {path}");
+public sealed class UnsafePathException(string path, string? reason = null)
+    : HdlssException(Tx.Get("path.rejected", reason ?? Tx.Get("path.unsafe"), path));

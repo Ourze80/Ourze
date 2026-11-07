@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using System.Text.RegularExpressions;
 using Hdlss.Core.Diagnostics;
 using Hdlss.Core.Games;
@@ -16,10 +17,10 @@ public sealed partial class OptiScalerComponent : ComponentBase
 
     public override string Id => ComponentId;
     public override string Name => "OptiScaler";
-    public override string Description => "Upscaler/NR come proxy DLL. F5 · Janblade aggiunge Neural Rendering multipass (configurabile nel menu in gioco, Insert). Standard: solo upscaling, NR spento.";
+    public override string Description => Tx.Get("os.desc");
     public override IReadOnlyList<ComponentOption> Options =>
     [
-        new("build", "Build", [("f5", "F5 · Janblade · NR Multipass"), ("official", "Standard · senza NR")], "f5"),
+        new("build", "Build", [("f5", "F5 · Janblade · NR Multipass"), ("official", Tx.Get("os.opt.std"))], "f5"),
         MenuKeys.Option(MenuKeys.OptiScalerDefault),
     ];
 
@@ -35,8 +36,8 @@ public sealed partial class OptiScalerComponent : ComponentBase
     protected override ComponentStatus? DetectExternal(GameContext ctx) => ctx.Scan.OptiScalerProxies.Count switch
     {
         0 => null,
-        1 => new ComponentStatus(ComponentStatusKind.External, $"OptiScaler presente come {ctx.Scan.OptiScalerProxy} · installato da altro software"),
-        _ => new ComponentStatus(ComponentStatusKind.Blocked, "Più copie di OptiScaler: " + string.Join(", ", ctx.Scan.OptiScalerProxies)),
+        1 => new ComponentStatus(ComponentStatusKind.External, Tx.Get("os.status.external", ctx.Scan.OptiScalerProxy)),
+        _ => new ComponentStatus(ComponentStatusKind.Blocked, Tx.Get("os.status.many", string.Join(", ", ctx.Scan.OptiScalerProxies))),
     };
 
     /// <summary>F5 runs a Neural Rendering pass; Standard does not. Imported installs without a build are treated as NR (safe side).</summary>
@@ -47,8 +48,8 @@ public sealed partial class OptiScalerComponent : ComponentBase
         // The single-NR rule applies to the F5 build only: checked in PlanInstallAsync where the build is known.
         var managed = ctx.State.Get(Id);
         var foreign = ctx.Scan.OptiScalerProxies.Where(p => managed?.FindFile(p) == null).ToList();
-        if (foreign.Count > 0) blockers.Add($"OptiScaler di un altro programma ({string.Join(", ", foreign)}): HDLSS5 non lo gestisce ancora. Usa «Importa in HDLSS5» per gestirlo da qui.");
-        if (ctx.Api == GraphicsApi.Unknown) blockers.Add("API grafica non riconosciuta: HDLSS5 non ha capito se il gioco usa DX11, DX12 o Vulkan. Impostala in «Eseguibile e API».");
+        if (foreign.Count > 0) blockers.Add(Tx.Get("os.block.foreign", string.Join(", ", foreign)));
+        if (ctx.Api == GraphicsApi.Unknown) blockers.Add(Tx.Get("rs.block.api"));
     }
 
     private static async Task<(GitHubRelease? Release, ReleaseAsset? Asset)> FindReleaseAsync(GameContext ctx, bool f5, CancellationToken cancel)
@@ -89,28 +90,28 @@ public sealed partial class OptiScalerComponent : ComponentBase
             if (nrBlock.Count > 0) throw new BlockedException(string.Join("\n", nrBlock));
         }
 
-        progress?.Report(new($"Cerco l'ultima release stabile di {repo}…"));
+        progress?.Report(new(Tx.Get("os.progress.release", repo)));
         var (release, asset) = await FindReleaseAsync(ctx, f5, cancel);
-        if (release == null || asset == null) throw new HdlssException("Nessun pacchetto OptiScaler compatibile nelle ultime release.");
-        if (!GitHubRelease.FromRepo(asset, repo, release.Tag)) throw new HdlssException("Origine del pacchetto non valida.");
+        if (release == null || asset == null) throw new HdlssException(Tx.Get("os.err.noPackage"));
+        if (!GitHubRelease.FromRepo(asset, repo, release.Tag)) throw new HdlssException(Tx.Get("os.err.origin"));
         if (asset.Sha256 == null) ctx.Services.Log.Warn($"{asset.Name}: la release non pubblica uno SHA-256, verifica solo tramite HTTPS.");
 
         var archive = await ctx.Services.Http.DownloadAsync(asset.Url, asset.Name, asset.Sha256, 512L << 20, progress, cancel);
         var temp = Path.Combine(ctx.Services.Paths.Temp, Guid.NewGuid().ToString("N"));
         try
         {
-            progress?.Report(new("Estrazione e verifica del pacchetto…"));
+            progress?.Report(new(Tx.Get("os.progress.extract")));
             Archives.Extract(archive, temp);
             var mains = Directory.GetFiles(temp, "OptiScaler.dll", SearchOption.AllDirectories);
-            if (mains.Length != 1 || !FolderScan.IsOptiScaler(mains[0])) throw new HdlssException("Il pacchetto non contiene un unico OptiScaler.dll x64.");
+            if (mains.Length != 1 || !FolderScan.IsOptiScaler(mains[0])) throw new HdlssException(Tx.Get("os.err.notUnique"));
             var package = Path.GetDirectoryName(mains[0])!;
             var packageIni = Path.Combine(package, "OptiScaler.ini");
-            if (!File.Exists(packageIni)) throw new HdlssException("OptiScaler.ini mancante nel pacchetto.");
+            if (!File.Exists(packageIni)) throw new HdlssException(Tx.Get("os.err.noIni"));
 
             var managed = ctx.State.Get(Id);
             var proxy = managed?.Files.Select(f => f.Path).FirstOrDefault(p => FolderScan.ProxyNames.Contains(p, StringComparer.OrdinalIgnoreCase))
                         ?? FolderScan.ProxyNames.FirstOrDefault(p => !File.Exists(PathGuard.Resolve(ctx.Folder, p)))
-                        ?? throw new BlockedException("Nessun nome di proxy DLL libero nella cartella del gioco.");
+                        ?? throw new BlockedException(Tx.Get("os.err.noProxy"));
 
             var plan = ctx.NewPlan(this, $"{(f5 ? "F5" : "Standard")} · {release.Tag}");
             plan.Meta("build", build);
@@ -157,9 +158,9 @@ public sealed partial class OptiScalerComponent : ComponentBase
             {
                 var modelOwner = ctx.State.OwnerOf("nvngx_dlssnr.dll");
                 if (modelOwner == null || modelOwner == Id) plan.AddFile("nvngx_dlssnr.dll", NrRules.ModelFile(ctx, out _));
-                plan.Note($"Nel menu OptiScaler ({MenuKeys.NameOf(menuCode ?? MenuKeys.OptiScalerDefault)}) configura Multipass e Optical F5Low. La conversione SDR→HDR non supporta DLSS-G.");
+                plan.Note(Tx.Get("os.note.f5", MenuKeys.NameOf(menuCode ?? MenuKeys.OptiScalerDefault)));
             }
-            plan.Note($"Proxy: {proxy}. Riavvia il gioco e verifica OptiScaler.log.");
+            plan.Note(Tx.Get("os.note.proxy", proxy));
             return plan.Build();
         }
         finally

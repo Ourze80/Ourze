@@ -85,9 +85,9 @@
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="{Binding Name}" Style="{StaticResource Heading}" />
                                 <Border BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="9" Padding="8,1" Margin="10,0,0,0" VerticalAlignment="Center"
-                                        ToolTip="HDLSS5 non modifica questo componente: aggiornalo o rimuovilo con il programma che lo ha installato."
+                                        ToolTip="{Binding [comp.external.tip], Source={x:Static app:Loc.Instance}}"
                                         Visibility="{Binding IsExternallyManaged, Converter={StaticResource Vis}}">
-                                    <TextBlock Text="Gestito da un altro programma" Foreground="{StaticResource Muted}" FontSize="11" />
+                                    <TextBlock Text="{Binding [comp.external], Source={x:Static app:Loc.Instance}}" Foreground="{StaticResource Muted}" FontSize="11" />
                                 </Border>
                             </StackPanel>
                         </DockPanel>
@@ -129,15 +129,15 @@
                             <TextBlock Text="{Binding UnavailableText}" Foreground="{DynamicResource Accent}" FontSize="13" TextWrapping="Wrap" />
                         </Border>
                         <StackPanel Orientation="Horizontal">
-                            <Button Style="{StaticResource Primary}" Content="Importa in HDLSS5" Command="{Binding ImportExternalCommand}"
-                                    ToolTip="Prende in gestione i file installati dall'altro programma, senza modificare il gioco."
+                            <Button Style="{StaticResource Primary}" Content="{Binding [comp.importHdlss], Source={x:Static app:Loc.Instance}}" Command="{Binding ImportExternalCommand}"
+                                    ToolTip="{Binding [comp.importHdlss.tip], Source={x:Static app:Loc.Instance}}"
                                     Visibility="{Binding CanImportExternal, Converter={StaticResource Vis}}" />
                             <Button Style="{StaticResource Primary}" Content="{Binding ActionLabel}" Command="{Binding InstallCommand}"
                                     Visibility="{Binding ShowAction, Converter={StaticResource Vis}}" />
                             <TextBlock Text="{Binding CheckingText}" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,12,0"
                                        Visibility="{Binding IsChecking, Converter={StaticResource Vis}}" />
-                            <Button Content="Reinstalla" Command="{Binding InstallCommand}"
-                                    ToolTip="Non riesco a sapere se c'è una versione più recente (offline o fonte senza versioni): reinstalla l'ultima disponibile."
+                            <Button Content="{Binding [comp.reinstall], Source={x:Static app:Loc.Instance}}" Command="{Binding InstallCommand}"
+                                    ToolTip="{Binding [comp.reinstall.tip], Source={x:Static app:Loc.Instance}}"
                                     Visibility="{Binding ShowReinstall, Converter={StaticResource Vis}}" />
                             <Button Content="{Binding ImportLabel}" Command="{Binding ImportCommand}"
                                     Visibility="{Binding CanImportFile, Converter={StaticResource Vis}}" />
@@ -148,7 +148,7 @@
                         <TextBlock Text="{Binding VersionsText}" ToolTip="{Binding VersionsText}" Foreground="{StaticResource Muted}" FontSize="11"
                                    TextTrimming="CharacterEllipsis" Margin="0,6,0,0"
                                    Visibility="{Binding HasVersions, Converter={StaticResource Vis}}" />
-                        <TextBlock Text="⚠ Non è una versione più recente" Foreground="{StaticResource Warn}" FontSize="11" Margin="0,2,0,0"
+                        <TextBlock Text="{Binding [comp.notNewer], Source={x:Static app:Loc.Instance}}" Foreground="{StaticResource Warn}" FontSize="11" Margin="0,2,0,0"
                                    Visibility="{Binding ShowDowngradeWarning, Converter={StaticResource Vis}}" />
                     </StackPanel>
                 </Grid>
@@ -173,13 +173,13 @@
                    ToolTip="{Binding GpuText}" />
             <StackPanel DockPanel.Dock="Bottom" Margin="0,0,0,12">
                 <ToggleButton IsChecked="{Binding Advanced}" Cursor="Hand" Margin="6,2" Background="Transparent" BorderThickness="0"
-                              ToolTip="Modalità avanzata: percorsi, opzioni di ogni componente, installazioni 1.x e cronologia.">
+                              ToolTip="{Binding [rail.advanced.tip], Source={x:Static app:Loc.Instance}}">
                     <ToggleButton.Template>
                         <ControlTemplate TargetType="ToggleButton">
                             <Border x:Name="b" Background="Transparent" CornerRadius="8" Padding="0,8">
                                 <StackPanel HorizontalAlignment="Center">
                                     <TextBlock x:Name="icon" Text="&#xE90F;" FontFamily="{StaticResource IconFont}" FontSize="18" HorizontalAlignment="Center" Foreground="{StaticResource Muted}" />
-                                    <TextBlock x:Name="label" Text="Avanzate" FontSize="11" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="{StaticResource Muted}" />
+                                    <TextBlock x:Name="label" Text="{Binding [rail.advanced], Source={x:Static app:Loc.Instance}}" FontSize="11" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="{StaticResource Muted}" />
                                 </StackPanel>
                             </Border>
                             <ControlTemplate.Triggers>
@@ -194,16 +194,16 @@
                         </ControlTemplate>
                     </ToggleButton.Template>
                 </ToggleButton>
-                <Button Style="{StaticResource RailAction}" Command="{Binding OpenGuideCommand}" ToolTip="Guida passo per passo">
+                <Button Style="{StaticResource RailAction}" Command="{Binding OpenGuideCommand}" ToolTip="{Binding [rail.guide.tip], Source={x:Static app:Loc.Instance}}">
                     <StackPanel>
                         <TextBlock Text="&#xE897;" FontFamily="{StaticResource IconFont}" FontSize="18" HorizontalAlignment="Center" />
-                        <TextBlock Text="Guida" FontSize="11" Margin="0,4,0,0" HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding [rail.guide], Source={x:Static app:Loc.Instance}}" FontSize="11" Margin="0,4,0,0" HorizontalAlignment="Center" />
                     </StackPanel>
                 </Button>
-                <Button Style="{StaticResource RailAction}" Command="{Binding OpenSettingsCommand}" ToolTip="Impostazioni">
+                <Button Style="{StaticResource RailAction}" Command="{Binding OpenSettingsCommand}" ToolTip="{Binding [settings], Source={x:Static app:Loc.Instance}}">
                     <StackPanel>
                         <TextBlock Text="&#xE713;" FontFamily="{StaticResource IconFont}" FontSize="18" HorizontalAlignment="Center" />
-                        <TextBlock Text="Impostazioni" FontSize="11" Margin="0,4,0,0" HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding [settings], Source={x:Static app:Loc.Instance}}" FontSize="11" Margin="0,4,0,0" HorizontalAlignment="Center" />
                     </StackPanel>
                 </Button>
             </StackPanel>
@@ -211,11 +211,11 @@
                 <RadioButton Style="{StaticResource RailButton}" GroupName="nav" IsChecked="{Binding IsGamesSection, Mode=OneWay}" Command="{Binding ShowLibraryCommand}">
                     <StackPanel>
                         <TextBlock Text="&#xE7FC;" FontFamily="{StaticResource IconFont}" FontSize="20" HorizontalAlignment="Center" />
-                        <TextBlock Text="Giochi" FontSize="11" Margin="0,4,0,0" HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding [rail.games], Source={x:Static app:Loc.Instance}}" FontSize="11" Margin="0,4,0,0" HorizontalAlignment="Center" />
                     </StackPanel>
                 </RadioButton>
                 <RadioButton Style="{StaticResource RailButton}" GroupName="nav" IsChecked="{Binding IsDlss, Mode=OneWay}" Command="{Binding ShowDlssCommand}"
-                             ToolTip="DLL NVIDIA dei tuoi giochi (DLSS e Streamline): versioni e aggiornamenti">
+                             ToolTip="{Binding [rail.dll.tip], Source={x:Static app:Loc.Instance}}">
                     <StackPanel>
                         <TextBlock Text="&#xE9F5;" FontFamily="{StaticResource IconFont}" FontSize="20" HorizontalAlignment="Center" />
                         <TextBlock Text="DLL" FontSize="11" Margin="0,4,0,0" HorizontalAlignment="Center" />
@@ -233,23 +233,23 @@
                             <TextBox x:Name="SearchBox" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" Padding="32,7,8,7" />
                             <TextBlock Text="&#xE721;" FontFamily="{StaticResource IconFont}" Foreground="{StaticResource Muted}" Margin="11,0,0,0"
                                        VerticalAlignment="Center" IsHitTestVisible="False" />
-                            <TextBlock Text="Cerca  (Ctrl+F)" Foreground="{StaticResource Muted}" Margin="33,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                            <TextBlock Text="{Binding [lib.searchHint], Source={x:Static app:Loc.Instance}}" Foreground="{StaticResource Muted}" Margin="33,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
                                        Visibility="{Binding Text, ElementName=SearchBox, Converter={StaticResource Vis}, ConverterParameter=invert}" />
                         </Grid>
-                        <Button Command="{Binding AddGameCommand}" Content="+ Aggiungi gioco" ToolTip="Aggiungi un gioco non trovato automaticamente scegliendo il suo .exe" />
-                        <Button Command="{Binding RefreshCommand}" Margin="0" ToolTip="Cerca di nuovo i giochi installati (F5)">
+                        <Button Command="{Binding AddGameCommand}" Content="{Binding [lib.addGame], Source={x:Static app:Loc.Instance}}" ToolTip="{Binding [lib.addGame.tip], Source={x:Static app:Loc.Instance}}" />
+                        <Button Command="{Binding RefreshCommand}" Margin="0" ToolTip="{Binding [lib.refresh.tip], Source={x:Static app:Loc.Instance}}">
                             <TextBlock Text="&#xE72C;" FontFamily="{StaticResource IconFont}" />
                         </Button>
                     </StackPanel>
                     <StackPanel>
-                        <TextBlock Text="I tuoi giochi" Style="{StaticResource Title}" />
+                        <TextBlock Text="{Binding [lib.title], Source={x:Static app:Loc.Instance}}" Style="{StaticResource Title}" />
                         <TextBlock Text="{Binding LibrarySummary}" Style="{StaticResource MutedText}" Margin="0,2,0,0" />
                     </StackPanel>
                 </DockPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
-                    <RadioButton Style="{StaticResource ChipToggle}" GroupName="filter" IsChecked="{Binding FilterAll}" Content="Tutti" />
-                    <RadioButton Style="{StaticResource ChipToggle}" GroupName="filter" IsChecked="{Binding FilterActive}" Content="Con Neural Rendering" />
-                    <RadioButton Style="{StaticResource ChipToggle}" GroupName="filter" IsChecked="{Binding FilterAttention}" Content="Da sistemare" />
+                    <RadioButton Style="{StaticResource ChipToggle}" GroupName="filter" IsChecked="{Binding FilterAll}" Content="{Binding [lib.filter.all], Source={x:Static app:Loc.Instance}}" />
+                    <RadioButton Style="{StaticResource ChipToggle}" GroupName="filter" IsChecked="{Binding FilterActive}" Content="{Binding [lib.filter.active], Source={x:Static app:Loc.Instance}}" />
+                    <RadioButton Style="{StaticResource ChipToggle}" GroupName="filter" IsChecked="{Binding FilterAttention}" Content="{Binding [lib.filter.attention], Source={x:Static app:Loc.Instance}}" />
                 </StackPanel>
             </StackPanel>
             <Grid>
@@ -305,10 +305,10 @@
                         </Rectangle.Fill>
                     </Rectangle>
                     <Button HorizontalAlignment="Left" VerticalAlignment="Top" Margin="28,22,0,0" Background="#AA0F1115"
-                            Command="{Binding DataContext.GoBackCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="Torna ai giochi (Esc)">
+                            Command="{Binding DataContext.GoBackCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="{Binding [game.back.tip], Source={x:Static app:Loc.Instance}}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE72B;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                            <TextBlock Text="Giochi" />
+                            <TextBlock Text="{Binding [rail.games], Source={x:Static app:Loc.Instance}}" />
                         </StackPanel>
                     </Button>
                     <StackPanel VerticalAlignment="Bottom" Margin="40,0,40,8">
@@ -341,7 +341,7 @@
                     <Border Style="{StaticResource CardBorder}" Padding="26,22">
                         <StackPanel>
                             <TextBlock Text="DLSS 5 · Neural Rendering" Style="{StaticResource MutedText}" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,10" />
-                            <TextBlock Text="Come vuoi installarlo?" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"
+                            <TextBlock Text="{Binding [card.how], Source={x:Static app:Loc.Instance}}" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"
                                        Visibility="{Binding MethodsEnabled, Converter={StaticResource Vis}}" />
                             <UniformGrid Columns="2" Margin="0,0,-10,18" Visibility="{Binding MethodsEnabled, Converter={StaticResource Vis}}">
                                 <RadioButton Style="{StaticResource PathCard}" GroupName="method" IsChecked="{Binding IsMethodReShade}">
@@ -349,9 +349,9 @@
                                         <DockPanel>
                                             <Border DockPanel.Dock="Right" Background="{DynamicResource AccentTint}" CornerRadius="8" Padding="8,2"
                                                     Visibility="{Binding ReShadeRecommended, Converter={StaticResource Vis}}">
-                                                <TextBlock Text="Consigliato" FontSize="11" Foreground="{DynamicResource Accent}" />
+                                                <TextBlock Text="{Binding [card.recommended], Source={x:Static app:Loc.Instance}}" FontSize="11" Foreground="{DynamicResource Accent}" />
                                             </Border>
-                                            <TextBlock Text="Tramite ReShade" FontSize="16" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding [card.viaReShade], Source={x:Static app:Loc.Instance}}" FontSize="16" FontWeight="SemiBold" />
                                         </DockPanel>
                                         <TextBlock Text="{Binding ReShadeDescription}" Style="{StaticResource MutedText}" Margin="0,6,0,0" />
                                     </StackPanel>
@@ -361,9 +361,9 @@
                                         <DockPanel>
                                             <Border DockPanel.Dock="Right" Background="{DynamicResource AccentTint}" CornerRadius="8" Padding="8,2"
                                                     Visibility="{Binding OptiRecommended, Converter={StaticResource Vis}}">
-                                                <TextBlock Text="Consigliato" FontSize="11" Foreground="{DynamicResource Accent}" />
+                                                <TextBlock Text="{Binding [card.recommended], Source={x:Static app:Loc.Instance}}" FontSize="11" Foreground="{DynamicResource Accent}" />
                                             </Border>
-                                            <TextBlock Text="Tramite OptiScaler" FontSize="16" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding [card.viaOpti], Source={x:Static app:Loc.Instance}}" FontSize="16" FontWeight="SemiBold" />
                                         </DockPanel>
                                         <TextBlock Text="{Binding OptiDescription}" Style="{StaticResource MutedText}" Margin="0,6,0,0" />
                                     </StackPanel>
@@ -372,7 +372,7 @@
                             <TextBlock Text="{Binding Headline}" FontSize="22" FontWeight="SemiBold" Foreground="{Binding HeadlineBrushKey, Converter={StaticResource Brush}}" />
                             <TextBlock Text="{Binding Explanation}" FontSize="15" Margin="0,8,0,0" Foreground="#C9CEDA" LineHeight="22" />
                             <StackPanel Margin="0,14,0,0" Visibility="{Binding HasPlanSteps, Converter={StaticResource Vis}}">
-                                <TextBlock Text="Cosa verrà fatto" Style="{StaticResource MutedText}" Margin="0,0,0,6" />
+                                <TextBlock Text="{Binding [card.planTitle], Source={x:Static app:Loc.Instance}}" Style="{StaticResource MutedText}" Margin="0,0,0,6" />
                                 <ItemsControl ItemsSource="{Binding PlanSteps}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
@@ -390,13 +390,13 @@
                                 <Button Style="{StaticResource Big}" Command="{Binding LaunchCommand}">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE768;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                        <TextBlock Text="Gioca" />
+                                        <TextBlock Text="{Binding [card.play], Source={x:Static app:Loc.Instance}}" />
                                     </StackPanel>
                                 </Button>
-                                <Button Style="{StaticResource Big}" Content="Disattiva" Command="{Binding DisableCommand}"
+                                <Button Style="{StaticResource Big}" Content="{Binding [card.disable], Source={x:Static app:Loc.Instance}}" Command="{Binding DisableCommand}"
                                         Visibility="{Binding CanDisable, Converter={StaticResource Vis}}"
-                                        ToolTip="Toglie il Neural Rendering e rimette i file originali. ReShade e le altre mod restano." />
-                                <Button Style="{StaticResource Ghost}" Content="Apri cartella" Command="{Binding OpenFolderCommand}" VerticalAlignment="Center" />
+                                        ToolTip="{Binding [card.disable.tip], Source={x:Static app:Loc.Instance}}" />
+                                <Button Style="{StaticResource Ghost}" Content="{Binding [game.folder], Source={x:Static app:Loc.Instance}}" Command="{Binding OpenFolderCommand}" VerticalAlignment="Center" />
                             </WrapPanel>
 
                             <!-- "Did it work?" answer -->
@@ -441,11 +441,11 @@
                     <Border CornerRadius="8" Padding="16,12" Margin="0,0,0,12" Background="#2A1D1F" BorderBrush="{StaticResource Danger}" BorderThickness="1"
                             Visibility="{Binding HasCompat, Converter={StaticResource Vis}}">
                         <DockPanel>
-                            <Button DockPanel.Dock="Right" Style="{StaticResource Primary}" Content="Risolvi" Command="{Binding FixCompatCommand}" Margin="12,0,0,0" VerticalAlignment="Center"
-                                    ToolTip="Sposta ReShade sul caricatore giusto (ReShade64.dll caricato da OptiScaler, o dxgi.dll). Annullabile dalla cronologia."
+                            <Button DockPanel.Dock="Right" Style="{StaticResource Primary}" Content="{Binding [compat.fix], Source={x:Static app:Loc.Instance}}" Command="{Binding FixCompatCommand}" Margin="12,0,0,0" VerticalAlignment="Center"
+                                    ToolTip="{Binding [compat.fix.tip], Source={x:Static app:Loc.Instance}}"
                                     Visibility="{Binding CanFixCompat, Converter={StaticResource Vis}}" />
                             <StackPanel>
-                                <TextBlock Text="Conflitto tra ReShade e OptiScaler" FontWeight="SemiBold" Foreground="#F0A6A0" Margin="0,0,0,4" />
+                                <TextBlock Text="{Binding [compat.title], Source={x:Static app:Loc.Instance}}" FontWeight="SemiBold" Foreground="#F0A6A0" Margin="0,0,0,4" />
                                 <ItemsControl ItemsSource="{Binding CompatIssues}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
@@ -460,8 +460,8 @@
                     <!-- Category tabs: ReShade / OptiScaler / DLL / Altro -->
                     <Border BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1" Margin="0,14,0,14">
                         <DockPanel>
-                            <CheckBox DockPanel.Dock="Right" IsChecked="{Binding ShowAll}" Content="Mostra anche i non adatti" VerticalAlignment="Center"
-                                      ToolTip="Mostra anche i componenti che HDLSS5 ritiene non adatti a questo gioco." />
+                            <CheckBox DockPanel.Dock="Right" IsChecked="{Binding ShowAll}" Content="{Binding [tabs.showAll], Source={x:Static app:Loc.Instance}}" VerticalAlignment="Center"
+                                      ToolTip="{Binding [tabs.showAll.tip], Source={x:Static app:Loc.Instance}}" />
                             <StackPanel Orientation="Horizontal">
                                 <RadioButton Style="{StaticResource TabButton}" GroupName="gametab" IsChecked="{Binding IsTabReShade}" Content="{Binding TabReShadeLabel}" />
                                 <RadioButton Style="{StaticResource TabButton}" GroupName="gametab" IsChecked="{Binding IsTabOpti}" Content="{Binding TabOptiLabel}" />
@@ -473,26 +473,26 @@
                     <TextBlock Text="{Binding TabDescription}" Style="{StaticResource MutedText}" Margin="0,0,0,12" />
                     <ItemsControl ItemsSource="{Binding TabComponents}" ItemTemplate="{StaticResource ComponentCard}" />
                     <TextBlock Style="{StaticResource MutedText}" Margin="0,4,0,0" Visibility="{Binding TabEmpty, Converter={StaticResource Vis}}"
-                               Text="Nessun componente adatto a questo gioco in questa categoria. Spunta «Mostra anche i non adatti» per vederli tutti." />
+                               Text="{Binding [tabs.empty], Source={x:Static app:Loc.Instance}}" />
 
                     <!-- Advanced (for tinkerers) -->
                     <Border Margin="0,18,0,0" Padding="14,10" CornerRadius="8" Background="#161A21"
                             Visibility="{Binding Advanced, Converter={StaticResource Vis}, ConverterParameter=invert}">
                         <DockPanel>
-                            <CheckBox DockPanel.Dock="Right" VerticalAlignment="Center" Content="Mostra"
+                            <CheckBox DockPanel.Dock="Right" VerticalAlignment="Center" Content="{Binding [adv.show], Source={x:Static app:Loc.Instance}}"
                                       IsChecked="{Binding DataContext.Advanced, RelativeSource={RelativeSource AncestorType=Window}}" />
                             <TextBlock Style="{StaticResource MutedText}" VerticalAlignment="Center"
-                                       Text="Opzioni avanzate: eseguibile e API, installazioni 1.x e di altri programmi, cronologia e anteprima di ogni modifica." />
+                                       Text="{Binding [adv.hint], Source={x:Static app:Loc.Instance}}" />
                         </DockPanel>
                     </Border>
                     <StackPanel Visibility="{Binding Advanced, Converter={StaticResource Vis}}" Margin="0,22,0,0">
                         <DockPanel Margin="0,0,0,10">
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                <Button Content="Eseguibile e API…" Command="{Binding EditExeCommand}" />
-                                <Button Content="Cronologia" Command="{Binding HistoryCommand}" Margin="0" />
+                                <Button Content="{Binding [game.exe], Source={x:Static app:Loc.Instance}}" Command="{Binding EditExeCommand}" />
+                                <Button Content="{Binding [game.history], Source={x:Static app:Loc.Instance}}" Command="{Binding HistoryCommand}" Margin="0" />
                             </StackPanel>
                             <StackPanel>
-                                <TextBlock Style="{StaticResource Heading}" Text="Avanzate" />
+                                <TextBlock Style="{StaticResource Heading}" Text="{Binding [rail.advanced], Source={x:Static app:Loc.Instance}}" />
                                 <TextBlock Text="{Binding ExeText}" Style="{StaticResource MutedText}" FontFamily="{StaticResource MonoFont}" FontSize="12" />
                             </StackPanel>
                         </DockPanel>
@@ -511,10 +511,10 @@
                                             <DataTemplate DataType="{x:Type vm:LegacyItemViewModel}">
                                                 <DockPanel Margin="0,0,0,8">
                                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                                        <Button Style="{StaticResource Primary}" Command="{Binding AdoptCommand}" Content="Adotta"
+                                                        <Button Style="{StaticResource Primary}" Command="{Binding AdoptCommand}" Content="{Binding [legacy.adopt], Source={x:Static app:Loc.Instance}}"
                                                                 Visibility="{Binding CanAdopt, Converter={StaticResource Vis}}" />
                                                         <Button Command="{Binding RestoreCommand}" Content="{Binding [legacy.restore], Source={x:Static app:Loc.Instance}}" />
-                                                        <Button Style="{StaticResource Ghost}" Command="{Binding RestoreForceCommand}" Content="Ripristina comunque" Margin="0" />
+                                                        <Button Style="{StaticResource Ghost}" Command="{Binding RestoreForceCommand}" Content="{Binding [legacy.restoreForce], Source={x:Static app:Loc.Instance}}" Margin="0" />
                                                     </StackPanel>
                                                     <StackPanel VerticalAlignment="Center">
                                                         <TextBlock Text="{Binding Title}" />
@@ -530,14 +530,14 @@
 
                         <Border Style="{StaticResource CardBorder}" BorderBrush="{StaticResource Warn}" Visibility="{Binding HasForeign, Converter={StaticResource Vis}}">
                             <StackPanel>
-                                <TextBlock Style="{StaticResource Heading}" Text="Installati da altri programmi" />
+                                <TextBlock Style="{StaticResource Heading}" Text="{Binding [foreign.title], Source={x:Static app:Loc.Instance}}" />
                                 <TextBlock Style="{StaticResource MutedText}" Margin="0,4,0,10"
-                                           Text="«Importa» li fa gestire a HDLSS5 senza modificare il gioco. Se l'altro programma ha lasciato una copia dell'originale, «Rimuovi» rimetterà quella." />
+                                           Text="{Binding [foreign.desc], Source={x:Static app:Loc.Instance}}" />
                                 <ItemsControl ItemsSource="{Binding Foreign}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate DataType="{x:Type vm:ForeignItemViewModel}">
                                             <DockPanel Margin="0,0,0,8">
-                                                <Button DockPanel.Dock="Right" Style="{StaticResource Primary}" Content="Importa" Command="{Binding ImportCommand}" Margin="0" />
+                                                <Button DockPanel.Dock="Right" Style="{StaticResource Primary}" Content="{Binding [foreign.import], Source={x:Static app:Loc.Instance}}" Command="{Binding ImportCommand}" Margin="0" />
                                                 <StackPanel VerticalAlignment="Center">
                                                     <TextBlock Text="{Binding Title}" />
                                                     <TextBlock Text="{Binding Detail}" Style="{StaticResource MutedText}" />
@@ -550,9 +550,9 @@
                         </Border>
                         <Border Style="{StaticResource CardBorder}" Visibility="{Binding HasUnknown, Converter={StaticResource Vis}}">
                             <StackPanel>
-                                <TextBlock Style="{StaticResource Heading}" Text="Altri iniettori non gestibili" />
+                                <TextBlock Style="{StaticResource Heading}" Text="{Binding [unknown.title], Source={x:Static app:Loc.Instance}}" />
                                 <TextBlock Style="{StaticResource MutedText}" Margin="0,4,0,10"
-                                           Text="File iniettati da programmi che HDLSS5 non conosce. Non vengono toccati, ma possono entrare in conflitto con il Neural Rendering: se qualcosa non funziona, toglili con il programma che li ha installati." />
+                                           Text="{Binding [unknown.desc], Source={x:Static app:Loc.Instance}}" />
                                 <ItemsControl ItemsSource="{Binding UnknownInjectors}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
@@ -576,19 +576,19 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <StackPanel>
-                <TextBlock Text="DLL dei tuoi giochi" Style="{StaticResource Title}" />
+                <TextBlock Text="{Binding [dll.title], Source={x:Static app:Loc.Instance}}" Style="{StaticResource Title}" />
                 <TextBlock Style="{StaticResource MutedText}" Margin="0,4,0,0" MaxWidth="820" HorizontalAlignment="Left"
-                           Text="Molti giochi includono versioni vecchie delle DLL NVIDIA: DLSS (Super Resolution, Frame Generation, Ray Reconstruction) e Streamline. Aggiornarle spesso migliora qualità e stabilità. Gli originali restano salvati: scegli «Originale del gioco» nel menu per rimetterli. Nei giochi online con anti-cheat è meglio non aggiornare." />
+                           Text="{Binding [dll.desc], Source={x:Static app:Loc.Instance}}" />
                 <DockPanel Margin="0,16,0,0">
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
                         <Button Style="{StaticResource Primary}" Command="{Binding UpdateAllCommand}"
                                 Visibility="{Binding HasOutdated, Converter={StaticResource Vis}}">
-                            <TextBlock><Run Text="Porta tutti alle più recenti (" /><Run Text="{Binding OutdatedCount, Mode=OneWay}" /><Run Text=")" /></TextBlock>
+                            <TextBlock Text="{Binding UpdateAllText}" />
                         </Button>
                         <Button Command="{Binding RefreshCommand}" Margin="0">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE72C;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                <TextBlock Text="Controlla di nuovo" />
+                                <TextBlock Text="{Binding [dll.recheck], Source={x:Static app:Loc.Instance}}" />
                             </StackPanel>
                         </Button>
                     </StackPanel>
@@ -663,15 +663,15 @@
                                                 <StackPanel Orientation="Horizontal" Margin="0,0,24,10" Visibility="{Binding HasDlss, Converter={StaticResource Vis}}">
                                                     <TextBlock Text="DLSS" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{StaticResource Muted}" />
                                                     <ComboBox ItemsSource="{Binding DlssChoices}" SelectedItem="{Binding SelectedDlss}" MinWidth="280"
-                                                              ToolTip="Più recente, una versione precedente oppure le DLL originali del gioco" />
+                                                              ToolTip="{Binding [dll.choice.tip], Source={x:Static app:Loc.Instance}}" />
                                                 </StackPanel>
                                                 <StackPanel Orientation="Horizontal" Margin="0,0,24,10" Visibility="{Binding HasStreamline, Converter={StaticResource Vis}}">
                                                     <TextBlock Text="Streamline" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{StaticResource Muted}" />
                                                     <ComboBox ItemsSource="{Binding StreamlineChoices}" SelectedItem="{Binding SelectedStreamline}" MinWidth="280"
-                                                              ToolTip="Più recente, una versione precedente oppure le DLL originali del gioco" />
+                                                              ToolTip="{Binding [dll.choice.tip], Source={x:Static app:Loc.Instance}}" />
                                                 </StackPanel>
                                             </WrapPanel>
-                                            <Button Style="{StaticResource Primary}" Content="Applica" Command="{Binding ApplyCommand}" HorizontalAlignment="Left"
+                                            <Button Style="{StaticResource Primary}" Content="{Binding [dll.apply], Source={x:Static app:Loc.Instance}}" Command="{Binding ApplyCommand}" HorizontalAlignment="Left"
                                                     Visibility="{Binding HasChanges, Converter={StaticResource Vis}}" />
                                         </StackPanel>
                                     </Grid>
@@ -696,7 +696,7 @@
                             <TextBlock Text="&#xE70E;" FontFamily="{StaticResource IconFont}" Margin="6,2,0,0" FontSize="10" />
                         </StackPanel>
                     </Button>
-                    <Button DockPanel.Dock="Right" Style="{StaticResource Ghost}" Content="Annulla" Command="{Binding CancelCommand}" Margin="0" Padding="8,2"
+                    <Button DockPanel.Dock="Right" Style="{StaticResource Ghost}" Content="{Binding [plan.cancel], Source={x:Static app:Loc.Instance}}" Command="{Binding CancelCommand}" Margin="0" Padding="8,2"
                             Visibility="{Binding Busy, Converter={StaticResource Vis}}" />
                     <TextBlock DockPanel.Dock="Right" Text="{Binding GpuText}" Foreground="{StaticResource Muted}" FontSize="12" VerticalAlignment="Center" Margin="12,0" />
                     <TextBlock Text="{Binding Status}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />

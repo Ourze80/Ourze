@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.Text.Json;
 
 namespace Hdlss.App;
@@ -29,15 +30,28 @@ public sealed class Loc : INotifyPropertyChanged
         }
     }
 
+    /// <summary>Culture of the chosen language, for formatting (the thread culture may be stale, see Tx.Selected).</summary>
+    public CultureInfo Culture { get; private set; } = CultureInfo.GetCultureInfo("it-IT");
+
     public string Language
     {
         get => _language;
         set
         {
             _language = Languages.Contains(value) ? value : "it";
+            // Core picks its language from the UI culture (its own Tx class): keep both in step.
+            var culture = CultureInfo.GetCultureInfo(_language == "en" ? "en-US" : "it-IT");
+            CultureInfo.CurrentUICulture = culture;
+            CultureInfo.DefaultThreadCurrentUICulture = culture;
+            Thread.CurrentThread.CurrentUICulture = culture;
+            Culture = culture;
+            Hdlss.Core.Text.Tx.Selected = _language;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("Item[]"));
         }
     }
+
+    /// <summary>Formats a localized template with the UI culture.</summary>
+    public static string F(string key, params object?[] args) => string.Format(Instance.Culture, T(key), args);
 
     public string this[string key] =>
         _tables.TryGetValue(_language, out var t) && t.TryGetValue(key, out var v) ? v

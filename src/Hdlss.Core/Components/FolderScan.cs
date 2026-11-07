@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Hdlss.Core.IO;
+using Hdlss.Core.Text;
 
 namespace Hdlss.Core.Components;
 
@@ -74,7 +75,7 @@ public sealed class FolderScan
         s.HasNrModel = File.Exists(PathGuard.Resolve(folder, "nvngx_dlssnr.dll"));
         if (Directory.Exists(Path.Combine(gameRoot, "EasyAntiCheat")) || Directory.Exists(Path.Combine(gameRoot, "BattlEye"))
             || Directory.EnumerateFiles(folder, "*EasyAntiCheat*").Any())
-            s.AntiCheat = "Anti-cheat rilevato (EasyAntiCheat/BattlEye): le DLL aggiunte al gioco possono far scattare un ban. HDLSS5 non installa né modifica componenti in questo gioco.";
+            s.AntiCheat = Tx.Get("scan.antiCheat");
         return s;
     }
 

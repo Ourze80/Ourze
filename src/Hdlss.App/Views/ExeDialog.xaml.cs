@@ -44,7 +44,7 @@ public partial class ExeDialog : Window
         UpdateModHint();
 
         var detected = game.HasExe ? ExecutableDetector.DetectApi(game.Exe, out _, game.ModFolder) : GraphicsApi.Unknown;
-        ApiAuto.Content = $"{Loc.T("exe.auto")} ({(detected == GraphicsApi.Unknown ? "non riconosciuta" : detected.ToString())})";
+        ApiAuto.Content = $"{Loc.T("exe.auto")} ({(detected == GraphicsApi.Unknown ? Loc.T("exe.notRecognized") : detected.ToString())})";
         var chosen = host.Settings.Profile(game.Id).ApiOverride;
         (chosen switch { GraphicsApi.DX11 => ApiDx11, GraphicsApi.DX12 => ApiDx12, GraphicsApi.Vulkan => ApiVulkan, _ => ApiAuto }).IsChecked = true;
         if (game.Store == GameStore.Manual) Targets.IsEnabled = false;
@@ -64,8 +64,8 @@ public partial class ExeDialog : Window
         var notes = new List<string>();
         var info = ExecutableDetector.Describe(full);
         if (info.Length > 0) notes.Add(info);
-        if (rel.Equals(_recommended, StringComparison.OrdinalIgnoreCase)) notes.Add("consigliato");
-        else if (ExecutableDetector.IsServiceExecutable(full)) notes.Add("strumento, non il gioco");
+        if (rel.Equals(_recommended, StringComparison.OrdinalIgnoreCase)) notes.Add(Loc.T("exe.recommended"));
+        else if (ExecutableDetector.IsServiceExecutable(full)) notes.Add(Loc.T("exe.tool"));
         var choice = new ExeChoice(rel, notes.Count == 0 ? rel : $"{rel}   —   {string.Join(" · ", notes)}");
         _choices.Add(choice);
         return choice;
@@ -85,10 +85,10 @@ public partial class ExeDialog : Window
             folder = auto != null ? PathGuard.RelativeTo(_game.Root, auto)
                 : Targets.SelectedItem is ExeChoice c ? (Path.GetDirectoryName(c.Rel) is { Length: > 0 } d ? d : ".") : "?";
             ModHint.Text = auto != null
-                ? $"Le mod andranno in «{folder}»: il gioco si avvia da un'altra cartella ma carica le DLL da qui (tipico di Unreal Engine)."
-                : $"Le mod andranno in «{folder}», la cartella dell'eseguibile.";
+                ? Loc.F("exe.hint.redirect", folder)
+                : Loc.F("exe.hint.same", folder);
         }
-        else ModHint.Text = "Cartella scelta a mano, relativa alla cartella del gioco. Usala solo se sai da dove il gioco carica dxgi.dll (ad es. guardando ReShade.log).";
+        else ModHint.Text = Loc.T("exe.hint.manual");
     }
 
     private void Targets_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateModHint();
@@ -104,7 +104,7 @@ public partial class ExeDialog : Window
             return;
         }
         try { ModFolder.Text = PathGuard.RelativeTo(_game.Root, folder); }
-        catch (HdlssException) { ErrorText.Text = "La cartella delle mod deve stare dentro la cartella del gioco."; }
+        catch (HdlssException) { ErrorText.Text = Loc.T("exe.err.modInside"); }
     }
 
     private void BrowseConfig_Click(object sender, RoutedEventArgs e)
@@ -121,7 +121,7 @@ public partial class ExeDialog : Window
         try
         {
             var rel = PathGuard.RelativeTo(_game.Root, file);
-            if (!PeFile.IsPe64(file) && !XboxLibrary.IsDeclaredX64(_game, file)) throw new HdlssException("L'eseguibile non è x64.");
+            if (!PeFile.IsPe64(file) && !XboxLibrary.IsDeclaredX64(_game, file)) throw new HdlssException(Loc.T("exe.err.notX64"));
             var choice = Add(rel);
             Targets.Items.Refresh();
             Targets.SelectedItem = choice;
@@ -136,20 +136,20 @@ public partial class ExeDialog : Window
             var profile = _host.Settings.Profile(_game.Id);
             if (_game.Store != GameStore.Manual)
             {
-                if (Targets.SelectedItem is not ExeChoice choice) throw new HdlssException("Scegli un eseguibile.");
+                if (Targets.SelectedItem is not ExeChoice choice) throw new HdlssException(Loc.T("exe.err.choose"));
                 var full = PathGuard.Resolve(_game.Root, choice.Rel);
-                if (!File.Exists(full) || (!PeFile.IsPe64(full) && !XboxLibrary.IsDeclaredX64(_game, full))) throw new HdlssException("Eseguibile x64 non valido.");
+                if (!File.Exists(full) || (!PeFile.IsPe64(full) && !XboxLibrary.IsDeclaredX64(_game, full))) throw new HdlssException(Loc.T("exe.err.invalid"));
                 profile.Target = choice.Rel;
             }
             if (ModAuto.IsChecked == true) profile.ModFolder = null;
             else
             {
                 var rel = ModFolder.Text.Trim().TrimEnd('\\', '/');
-                if (rel.Length == 0) throw new HdlssException("Indica la cartella delle mod o scegli «Automatica».");
+                if (rel.Length == 0) throw new HdlssException(Loc.T("exe.err.modEmpty"));
                 if (rel == ".") profile.ModFolder = "."; // the game's root folder
                 else
                 {
-                    if (!Directory.Exists(PathGuard.Resolve(_game.Root, rel))) throw new HdlssException("La cartella delle mod non esiste.");
+                    if (!Directory.Exists(PathGuard.Resolve(_game.Root, rel))) throw new HdlssException(Loc.T("exe.err.modMissing"));
                     profile.ModFolder = rel;
                 }
             }
@@ -160,7 +160,7 @@ public partial class ExeDialog : Window
             if (config.Length == 0 || string.Equals(config, auto, StringComparison.OrdinalIgnoreCase)) profile.ConfigFolder = null;
             else
             {
-                if (!File.Exists(Path.Combine(config, "GameUserSettings.ini"))) throw new HdlssException("La cartella indicata non contiene GameUserSettings.ini.");
+                if (!File.Exists(Path.Combine(config, "GameUserSettings.ini"))) throw new HdlssException(Loc.T("exe.err.noIni"));
                 Hdlss.Core.Transactions.Locations.ValidateRoot(config, _game.Root);
                 profile.ConfigFolder = Path.GetFullPath(config);
             }

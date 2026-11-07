@@ -40,15 +40,15 @@
         <TextBlock Text="{Binding [settings.language], Source={x:Static app:Loc.Instance}}" Margin="0,0,0,6" />
         <ComboBox x:Name="LanguageBox" HorizontalAlignment="Left" Margin="0,0,0,16" />
 
-        <TextBlock Text="Colore dell'app e del logo" Margin="0,0,0,6" />
+        <TextBlock Text="{Binding [set.color], Source={x:Static app:Loc.Instance}}" Margin="0,0,0,6" />
         <Border Background="{StaticResource Card}" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,16">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Left" Width="130" Margin="0,0,20,0">
                     <Border Width="84" Height="84" CornerRadius="18" Background="#090D14" HorizontalAlignment="Center">
                         <Image Source="{DynamicResource LogoImage}" Width="44" Height="44" RenderOptions.BitmapScalingMode="HighQuality" />
                     </Border>
-                    <Button Style="{StaticResource Primary}" Content="Anteprima" Margin="0,14,0,0" HorizontalAlignment="Center" IsHitTestVisible="False" Focusable="False" />
-                    <TextBlock Text="Consigliato" Foreground="{DynamicResource Accent}" HorizontalAlignment="Center" FontSize="12" Margin="0,8,0,0" />
+                    <Button Style="{StaticResource Primary}" Content="{Binding [set.preview], Source={x:Static app:Loc.Instance}}" Margin="0,14,0,0" HorizontalAlignment="Center" IsHitTestVisible="False" Focusable="False" />
+                    <TextBlock Text="{Binding [card.recommended], Source={x:Static app:Loc.Instance}}" Foreground="{DynamicResource Accent}" HorizontalAlignment="Center" FontSize="12" Margin="0,8,0,0" />
                 </StackPanel>
                 <StackPanel>
                     <WrapPanel x:Name="Swatches" Margin="0,0,0,10" />
@@ -60,24 +60,24 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="30" /><RowDefinition Height="30" /><RowDefinition Height="30" />
                         </Grid.RowDefinitions>
-                        <TextBlock Text="Tonalità" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
+                        <TextBlock Text="{Binding [set.hue], Source={x:Static app:Loc.Instance}}" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
                         <Slider x:Name="HueSlider" Grid.Column="1" Style="{StaticResource ColorSlider}" Minimum="0" Maximum="360" ValueChanged="Hsv_Changed" />
-                        <TextBlock Grid.Row="1" Text="Saturazione" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
+                        <TextBlock Grid.Row="1" Text="{Binding [set.sat], Source={x:Static app:Loc.Instance}}" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
                         <Slider x:Name="SatSlider" Grid.Row="1" Grid.Column="1" Style="{StaticResource ColorSlider}" Minimum="0" Maximum="100" ValueChanged="Hsv_Changed" />
-                        <TextBlock Grid.Row="2" Text="Luminosità" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
+                        <TextBlock Grid.Row="2" Text="{Binding [set.val], Source={x:Static app:Loc.Instance}}" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
                         <Slider x:Name="ValSlider" Grid.Row="2" Grid.Column="1" Style="{StaticResource ColorSlider}" Minimum="25" Maximum="100" ValueChanged="Hsv_Changed" />
                     </Grid>
                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                        <TextBlock Text="Codice" VerticalAlignment="Center" Foreground="{StaticResource Muted}" Width="90" />
+                        <TextBlock Text="{Binding [set.code], Source={x:Static app:Loc.Instance}}" VerticalAlignment="Center" Foreground="{StaticResource Muted}" Width="90" />
                         <TextBox x:Name="HexBox" Width="110" LostFocus="Hex_Commit" KeyDown="Hex_KeyDown" FontFamily="{StaticResource MonoFont}" />
-                        <Button Content="Ripristina azzurro del logo" Margin="10,0,0,0" Click="ResetColor_Click" />
+                        <Button Content="{Binding [set.resetColor], Source={x:Static app:Loc.Instance}}" Margin="10,0,0,0" Click="ResetColor_Click" />
                     </StackPanel>
                     <TextBlock x:Name="HexError" Foreground="{StaticResource Warn}" FontSize="12" Margin="90,4,0,0" Visibility="Collapsed"
-                               Text="Scrivi un colore come #3DDBFE" />
+                               Text="{Binding [set.hexError], Source={x:Static app:Loc.Instance}}" />
                     <TextBlock x:Name="DarkWarning" Foreground="{StaticResource Warn}" FontSize="12" Margin="90,4,0,0" Visibility="Collapsed"
-                               Text="Colore scuro: scritte e logo si leggono meno sullo sfondo scuro. Alza la luminosità." />
+                               Text="{Binding [set.darkWarn], Source={x:Static app:Loc.Instance}}" />
                     <TextBlock Style="{StaticResource MutedText}" Margin="0,8,0,0"
-                               Text="Si vede subito; «Salva» lo conserva, «Annulla» torna al colore di prima. Verde (attivo) e arancione (avvisi) restano fissi. L'icona del file HDLSS5.exe in Esplora file resta azzurra." />
+                               Text="{Binding [set.colorNote], Source={x:Static app:Loc.Instance}}" />
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -89,14 +89,14 @@
         </DockPanel>
         <TextBlock x:Name="LegacyInfo" Style="{StaticResource MutedText}" Margin="0,0,0,16" />
 
-        <TextBlock Text="Librerie Steam aggiuntive (una per riga)" Margin="0,0,0,6" />
+        <TextBlock Text="{Binding [set.libraries], Source={x:Static app:Loc.Instance}}" Margin="0,0,0,6" />
         <TextBox x:Name="Libraries" AcceptsReturn="True" Height="70" VerticalScrollBarVisibility="Auto" Margin="0,0,0,16" />
 
         <TextBlock Text="{Binding [settings.data], Source={x:Static app:Loc.Instance}}" Margin="0,0,0,6" />
         <TextBlock x:Name="DataInfo" Style="{StaticResource MutedText}" Margin="0,0,0,8" />
         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
             <Button Click="Maintenance_Click" Content="{Binding [settings.maintenance], Source={x:Static app:Loc.Instance}}" />
-            <Button Click="OpenData_Click" Content="Apri cartella dati" />
+            <Button Click="OpenData_Click" Content="{Binding [set.openData], Source={x:Static app:Loc.Instance}}" />
         </StackPanel>
         <TextBlock x:Name="MaintenanceInfo" Style="{StaticResource MutedText}" />
 

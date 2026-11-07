@@ -21,7 +21,7 @@ public partial class SettingsDialog : Window
         Libraries.Text = string.Join(Environment.NewLine, host.Settings.ExtraSteamLibraries);
         LegacyDir.TextChanged += (_, _) => UpdateLegacyInfo();
         UpdateLegacyInfo();
-        DataInfo.Text = $"{host.Paths.Data} · archivio backup {host.Services.Store.SizeBytes() / 1048576.0:N0} MB";
+        DataInfo.Text = Loc.F("set.data.info", host.Paths.Data, (host.Services.Store.SizeBytes() / 1048576.0).ToString("N0", Loc.Instance.Culture));
         InitColors();
     }
 
@@ -109,8 +109,8 @@ public partial class SettingsDialog : Window
     {
         var data = LegacyInstalls.FindDataFolder(string.IsNullOrWhiteSpace(LegacyDir.Text) ? null : LegacyDir.Text.Trim(), _host.Paths.AppDir);
         LegacyInfo.Text = data == null
-            ? "Nessuna cartella dati 1.x trovata. Serve solo per ripristinare giochi modificati dalla versione precedente."
-            : $"Dati 1.x: {data}. I file della 1.x non vengono mai modificati da questa versione.";
+            ? Loc.T("set.legacy.none")
+            : Loc.F("set.legacy.found", data);
     }
 
     private void Browse_Click(object sender, RoutedEventArgs e)
@@ -121,7 +121,7 @@ public partial class SettingsDialog : Window
 
     private async void Maintenance_Click(object sender, RoutedEventArgs e)
     {
-        MaintenanceInfo.Text = "Pulizia in corso…";
+        MaintenanceInfo.Text = Loc.T("set.cleaning");
         try
         {
             var report = await Task.Run(() => _host.Maintenance.Run(_host.Settings.KeepJournalsPerGame));

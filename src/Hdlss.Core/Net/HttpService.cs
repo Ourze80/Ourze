@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -87,7 +88,7 @@ public sealed class HttpService : IDisposable
             if ((response.StatusCode == HttpStatusCode.Forbidden || (int)response.StatusCode == 429) && url.Contains("api.github.com"))
             {
                 if (cached != null) { _log.Warn($"GitHub: limite richieste raggiunto, uso la copia locale di {url}"); return cached.Body; }
-                throw new HdlssException("GitHub ha temporaneamente limitato le richieste (60 all'ora senza account). Riprova tra qualche minuto.");
+                throw new HdlssException(Tx.Get("http.rateLimit"));
             }
             response.EnsureSuccessStatusCode();
             var body = await ReadBoundedAsync(response, 32L << 20, cancel);
@@ -125,7 +126,7 @@ public sealed class HttpService : IDisposable
         if (sha256 != null && File.Exists(target) && FileHash.Equal(FileHash.OfFile(target), sha256))
         {
             File.SetLastAccessTime(target, DateTime.Now);
-            progress?.Report(new($"{fileName}: copia locale verificata", 100));
+            progress?.Report(new(Tx.Get("http.localVerified", fileName), 100));
             return target;
         }
         Directory.CreateDirectory(dir);
@@ -136,7 +137,7 @@ public sealed class HttpService : IDisposable
             using var response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancel);
             response.EnsureSuccessStatusCode();
             long? length = response.Content.Headers.ContentLength;
-            if (length > maxBytes) throw new HdlssException($"{fileName}: dimensione {length / 1048576} MB oltre il limite previsto.");
+            if (length > maxBytes) throw new HdlssException(Tx.Get("http.sizeOver", fileName, length / 1048576));
             await using (var input = await response.Content.ReadAsStreamAsync(cancel))
             await using (var output = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 20, useAsync: true))
             {
@@ -145,23 +146,23 @@ public sealed class HttpService : IDisposable
                 while ((read = await input.ReadAsync(buffer, cancel)) > 0)
                 {
                     received += read;
-                    if (received > maxBytes) throw new HdlssException($"{fileName}: download oltre il limite previsto.");
+                    if (received > maxBytes) throw new HdlssException(Tx.Get("http.downloadOver", fileName));
                     await output.WriteAsync(buffer.AsMemory(0, read), cancel);
                     if (length > 0)
                     {
                         int percent = (int)(received * 100 / length.Value);
-                        if (percent != lastPercent) { lastPercent = percent; progress?.Report(new($"Download {fileName}", percent)); }
+                        if (percent != lastPercent) { lastPercent = percent; progress?.Report(new(Tx.Get("http.downloading", fileName), percent)); }
                     }
                 }
             }
             if (sha256 != null && !FileHash.Equal(FileHash.OfFile(temp), sha256))
-                throw new HdlssException($"{fileName}: SHA-256 diverso da quello pubblicato. File scartato.");
+                throw new HdlssException(Tx.Get("http.shaMismatch", fileName));
             File.Move(temp, target, overwrite: true);
             return target;
         }
         catch (HttpRequestException ex)
         {
-            throw new HdlssException($"Download non riuscito da {new Uri(url).Host}: {ex.Message}", ex);
+            throw new HdlssException(Tx.Get("http.downloadFailed", new Uri(url).Host, ex.Message), ex);
         }
         finally
         {
@@ -192,7 +193,7 @@ public sealed class HttpService : IDisposable
         while ((read = await stream.ReadAsync(buffer, cancel)) > 0)
         {
             memory.Write(buffer, 0, read);
-            if (memory.Length > max) throw new HdlssException("Risposta del server troppo grande.");
+            if (memory.Length > max) throw new HdlssException(Tx.Get("http.responseTooBig"));
         }
         return System.Text.Encoding.UTF8.GetString(memory.ToArray());
     }

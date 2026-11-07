@@ -102,10 +102,10 @@ public sealed partial class ComponentViewModel : ObservableObject
     public bool ShowAction => !CanImportExternal && State is UpdateState.NotInstalled or UpdateState.UpdateAvailable or UpdateState.OptionsChanged;
     public string ActionLabel => State switch
     {
-        UpdateState.UpdateAvailable when IsDowngrade => "Reinstalla",
-        UpdateState.UpdateAvailable => LatestVersion is { Length: <= 28 } v ? $"Aggiorna a {v}" : "Aggiorna",
-        UpdateState.OptionsChanged => "Applica le modifiche",
-        _ => "Installa",
+        UpdateState.UpdateAvailable when IsDowngrade => Loc.T("comp.reinstall"),
+        UpdateState.UpdateAvailable => LatestVersion is { Length: <= 28 } v ? Loc.F("comp.updateTo", v) : Loc.T("component.update"),
+        UpdateState.OptionsChanged => Loc.T("comp.applyChanges"),
+        _ => Loc.T("component.install"),
     };
     /// <summary>Installed version and the one on offer, shown under the button.</summary>
     [ObservableProperty] private string _versionsText = "";
@@ -118,7 +118,7 @@ public sealed partial class ComponentViewModel : ObservableObject
     /// <summary>Secondary "Reinstalla": when the latest version can't be checked, or for tinkerers.</summary>
     public bool ShowReinstall => IsManaged && (State == UpdateState.Unknown || State == UpdateState.UpToDate && _owner.Advanced);
     public bool IsChecking => State == UpdateState.Checking;
-    public string CheckingText => IsManaged || Kind == ComponentStatusKind.External ? "Controllo aggiornamenti…" : "Controllo disponibilità…";
+    public string CheckingText => IsManaged || Kind == ComponentStatusKind.External ? Loc.T("comp.checkingUpdates") : Loc.T("comp.checkingAvail");
     /// <summary>Why this component can't be installed for the game (e.g. no mod in the catalog).</summary>
     [ObservableProperty] private string _unavailableText = "";
     public bool IsUnavailable => UnavailableText.Length > 0;
@@ -160,20 +160,20 @@ public sealed partial class ComponentViewModel : ObservableObject
             if (!IsManaged && owner.LegacyComponents.Contains(component.Id))
             {
                 IsLegacy = true;
-                StatusText = "Installato da HDLSS5 1.x";
-                BlockersText = "Installazione della versione 1.x: usa «Adotta» nella sezione HDLSS5 1.x qui sopra per gestirla da qui (nessun file viene modificato).";
+                StatusText = Loc.T("comp.st.legacy");
+                BlockersText = Loc.T("comp.blocker.legacy");
             }
             else if (!IsManaged && owner.ForeignComponents.Contains(component.Id))
             {
                 var source = owner.Foreign.First(x => x.Install.ComponentId == component.Id).Install.Source;
-                StatusText = $"Installato da {source}";
+                StatusText = Loc.F("comp.st.foreign", source);
                 BlockersText = "";
             }
         }
         catch (Exception ex) when (ex is HdlssException or IOException or UnauthorizedAccessException)
         {
             Kind = ComponentStatusKind.Blocked;
-            StatusText = "Stato non leggibile";
+            StatusText = Loc.T("comp.st.unreadable");
             StatusBrushKey = "Danger";
             BlockersText = ex.Message;
         }
@@ -208,7 +208,7 @@ public sealed partial class ComponentViewModel : ObservableObject
         }
         if (reason == null) { State = UpdateState.NotInstalled; return; }
         UnavailableText = reason;
-        StatusText = "Non disponibile per questo gioco";
+        StatusText = Loc.T("comp.st.unavailable");
         StatusBrushKey = "Muted";
         State = UpdateState.Unavailable;
     }
@@ -246,12 +246,12 @@ public sealed partial class ComponentViewModel : ObservableObject
         }
         if (State == UpdateState.OptionsChanged) return;
         LatestVersion = check?.Latest;
-        var source = IsManaged ? "" : "Originali del gioco · ";
+        var source = IsManaged ? "" : Loc.T("comp.st.originals");
         if (check == null)
         {
             if (!IsManaged) { State = UpdateState.NotInstalled; return; }
             State = UpdateState.Unknown;
-            StatusText = $"Installato · {_record?.Version}";
+            StatusText = Loc.F("comp.st.installed", VersionCompare.Display(_record?.Version));
             StatusBrushKey = "Accent";
             return;
         }
@@ -259,21 +259,21 @@ public sealed partial class ComponentViewModel : ObservableObject
         {
             case VersionVerdict.UpToDate:
                 State = UpdateState.UpToDate;
-                StatusText = $"{source}Aggiornato · {check.Present}";
+                StatusText = Loc.F("comp.st.upToDate", source, check.Present);
                 StatusBrushKey = "Accent";
                 break;
             case VersionVerdict.Newer:
                 IsDowngrade = VersionCompare.IsDowngrade(check.Present, check.Latest);
-                VersionsText = $"{check.Present} → {check.Latest}";
+                VersionsText = $"{VersionCompare.Display(check.Present)} → {check.Latest}";
                 State = UpdateState.UpdateAvailable;
-                StatusText = $"{source}{check.Present} · disponibile {check.Latest}";
+                StatusText = Loc.F("comp.st.available", source, check.Present, check.Latest);
                 StatusBrushKey = "Warn";
                 break;
             default:
                 IsDowngrade = VersionCompare.IsDowngrade(check.Present, check.Latest);
-                VersionsText = $"{check.Present} → {check.Latest}";
+                VersionsText = $"{VersionCompare.Display(check.Present)} → {check.Latest}";
                 State = UpdateState.UpdateAvailable;
-                StatusText = $"Installato ({check.Present}) · versione non nota, ultima {check.Latest}";
+                StatusText = Loc.F("comp.st.unknownVer", check.Present, check.Latest);
                 StatusBrushKey = "Warn";
                 break;
         }
@@ -292,15 +292,15 @@ public sealed partial class ComponentViewModel : ObservableObject
         var ctx = _owner.Context!;
         var host = _owner.Main.Host;
         var options = Options.ToDictionary(o => o.Option.Key, o => o.Selected.Value);
-        var ok = await _owner.Main.RunAsync($"{Name}: preparazione", async (progress, cancel) =>
+        var ok = await _owner.Main.RunAsync(Loc.F("comp.op.prepare", Name), async (progress, cancel) =>
         {
             await _owner.ReleaseStandaloneModelAsync(ctx, Component.Id, progress, cancel);
             var plan = await Task.Run(() => host.Components.PlanInstallAsync(ctx, Component, options, progress, cancel), cancel);
             foreach (var (k, v) in options) plan.Meta[k] = v;
-            if (plan.IsEmpty) { Dialogs.Info($"{Name} è già aggiornato.\n\n{string.Join("\n", plan.Notes)}"); return; }
+            if (plan.IsEmpty) { Dialogs.Info(Loc.F("comp.dlg.upToDate", Name, string.Join("\n", plan.Notes))); return; }
             if (!Dialogs.ConfirmPlan(plan)) throw new OperationCanceledException();
             await Task.Run(() => host.Components.Apply(ctx, plan, progress), cancel);
-            if (plan.Notes.Count > 0) Dialogs.Info($"{Name} installato.\n\n{string.Join("\n", plan.Notes)}");
+            if (plan.Notes.Count > 0) Dialogs.Info(Loc.F("comp.dlg.installed", Name, string.Join("\n", plan.Notes)));
         });
         if (ok) await _owner.AfterChangeAsync(Component.Id);
     }
@@ -313,10 +313,10 @@ public sealed partial class ComponentViewModel : ObservableObject
         if (file == null) return;
         var ctx = _owner.Context!;
         var host = _owner.Main.Host;
-        var ok = await _owner.Main.RunAsync($"{Name}: importazione", async (progress, cancel) =>
+        var ok = await _owner.Main.RunAsync(Loc.F("comp.op.import", Name), async (progress, cancel) =>
         {
             var plan = await Task.Run(() => host.Components.PlanImportAsync(ctx, Component, file, progress, cancel), cancel);
-            if (plan.IsEmpty) { Dialogs.Info("Il file è già installato."); return; }
+            if (plan.IsEmpty) { Dialogs.Info(Loc.T("comp.dlg.fileInstalled")); return; }
             if (!Dialogs.ConfirmPlan(plan)) throw new OperationCanceledException();
             await Task.Run(() => host.Components.Apply(ctx, plan, progress), cancel);
         });
@@ -328,7 +328,7 @@ public sealed partial class ComponentViewModel : ObservableObject
     {
         var ctx = _owner.Context!;
         var host = _owner.Main.Host;
-        var ok = await _owner.Main.RunAsync($"{Name}: rimozione", async (progress, cancel) =>
+        var ok = await _owner.Main.RunAsync(Loc.F("comp.op.remove", Name), async (progress, cancel) =>
         {
             var plan = await RemovalFlow.PlanAsync(host, ctx, Component.Id, cancel);
             if (!Dialogs.ConfirmPlan(plan)) throw new OperationCanceledException();

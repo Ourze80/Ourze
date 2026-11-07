@@ -1,5 +1,6 @@
 using Hdlss.Core.Games;
 using Hdlss.Core.IO;
+using Hdlss.Core.Text;
 
 namespace Hdlss.Core.Components;
 
@@ -19,9 +20,9 @@ public static class NrAdvisor
 
     public static string Title(NrPath path) => path switch
     {
-        NrPath.Native => "DLSS del gioco + RenoDX NR",
-        NrPath.Feeder => "Feeder (per giochi senza DLSS)",
-        _ => "OptiScaler F5",
+        NrPath.Native => Tx.Get("nr.title.native"),
+        NrPath.Feeder => Tx.Get("nr.title.feeder"),
+        _ => Tx.Get("nr.title.opti"),
     };
 
     public static NrPath? Installed(GameContext ctx) =>
@@ -47,16 +48,16 @@ public static class NrAdvisor
     public static NrRecommendation Recommend(GameContext ctx)
     {
         bool dlss = HasNativeDlss(ctx);
-        if (Installed(ctx) is { } current) return new(current, "È il percorso già installato su questo gioco.", dlss);
-        if (!ctx.Gpu.SupportsNr) return new(null, "Serve una scheda NVIDIA RTX 4000 o 5000: su questo PC non è stata trovata.", dlss);
+        if (Installed(ctx) is { } current) return new(current, Tx.Get("nr.reason.installed"), dlss);
+        if (!ctx.Gpu.SupportsNr) return new(null, Tx.Get("nr.reason.noGpu"), dlss);
         return ctx.Api switch
         {
-            GraphicsApi.DX12 when dlss => new(NrPath.Native, "Il gioco usa DirectX 12 e ha già DLSS: RenoDX NR lo sfrutta direttamente. È il percorso più stabile.", true),
+            GraphicsApi.DX12 when dlss => new(NrPath.Native, Tx.Get("nr.reason.native"), true),
             GraphicsApi.DX12 or GraphicsApi.DX11 or GraphicsApi.Vulkan when !dlss =>
-                new(NrPath.Feeder, "Il gioco non ha DLSS: Feeder ricostruisce le informazioni che servono al Neural Rendering. È sperimentale, possono comparire scie leggere.", false),
+                new(NrPath.Feeder, Tx.Get("nr.reason.feederNoDlss"), false),
             GraphicsApi.DX11 or GraphicsApi.Vulkan =>
-                new(NrPath.Feeder, "Il gioco ha DLSS ma non usa DirectX 12: Feeder è il percorso che funziona con DirectX 11 e Vulkan.", true),
-            _ => new(null, "Non riesco a capire quale grafica usa il gioco. Aprila in «Avanzate › Eseguibile e API» e scegli DirectX 11, 12 o Vulkan.", dlss),
+                new(NrPath.Feeder, Tx.Get("nr.reason.feederDx11"), true),
+            _ => new(null, Tx.Get("nr.reason.unknownApi"), dlss),
         };
     }
 }

@@ -114,7 +114,7 @@ public sealed partial class GameDetailViewModel : ObservableObject
                 SummaryComponents = SummaryWarnings = SummaryNr = SummaryNrTip = "";
                 TabComponents.Clear(); CompatIssues.Clear(); Legacy.Clear(); PlanSteps.Clear();
                 OnPropertyChanged(nameof(HasLegacy)); OnPropertyChanged(nameof(HasPlanSteps));
-                SetCard("Cartella protetta di Windows", Game.ProtectedReason, "Warn", PrimaryAction.None);
+                SetCard(Loc.T("gd.protected"), Game.ProtectedReason, "Warn", PrimaryAction.None);
                 return;
             }
             var (ctx, legacy, recommendation, foreign, unknown) = await Task.Run(() =>
@@ -130,10 +130,10 @@ public sealed partial class GameDetailViewModel : ObservableObject
             });
             Context = ctx;
             Recommendation = recommendation;
-            ExeText = Game.ModFolder == null ? Game.Exe : $"Gioco: {Game.Exe}\nMod: {Game.Folder}";
-            Chips.Add(ctx.Api switch { GraphicsApi.DX11 => "DirectX 11", GraphicsApi.DX12 => "DirectX 12", GraphicsApi.Vulkan => "Vulkan", _ => "API sconosciuta" }
-                      + (host.Settings.Profile(Game.Id).ApiOverride != null ? " (manuale)" : ctx.Api != GraphicsApi.Unknown && !ctx.ApiCertain ? " (probabile)" : ""));
-            Chips.Add(recommendation.HasNativeDlss ? "DLSS presente" : "senza DLSS");
+            ExeText = Game.ModFolder == null ? Game.Exe : Loc.F("gd.exeText", Game.Exe, Game.Folder);
+            Chips.Add(ctx.Api switch { GraphicsApi.DX11 => "DirectX 11", GraphicsApi.DX12 => "DirectX 12", GraphicsApi.Vulkan => "Vulkan", _ => Loc.T("gd.api.unknown") }
+                      + (host.Settings.Profile(Game.Id).ApiOverride != null ? Loc.T("gd.api.manual") : ctx.Api != GraphicsApi.Unknown && !ctx.ApiCertain ? Loc.T("gd.api.probable") : ""));
+            Chips.Add(recommendation.HasNativeDlss ? Loc.T("gd.dlss.yes") : Loc.T("gd.dlss.no"));
             if (Game.Engine != EngineKind.Unknown) Chips.Add(Game.Engine == EngineKind.Unreal5 ? "Unreal Engine 5" : Game.Engine == EngineKind.Unreal4 ? "Unreal Engine 4" : "Unreal");
             Warnings.Clear();
             foreach (var w in Game.Warnings.Distinct()) Warnings.Add(WarningNotice(w));
@@ -166,6 +166,7 @@ public sealed partial class GameDetailViewModel : ObservableObject
                 var tab = method == NrMethod.OptiScaler ? GameTab.OptiScaler : GameTab.ReShade;
                 if (Tab != tab) Tab = tab; else OnTabChanged(tab);
             }
+            else OnPropertyChanged(nameof(TabDescription));   // language may have changed
             UpdateCompat();
             if (Path != path) Path = path;
             else { RebuildComponentList(); UpdateStatusCard(); }
@@ -175,7 +176,7 @@ public sealed partial class GameDetailViewModel : ObservableObject
         {
             Error = ex.Message;
             TabComponents.Clear();
-            SetCard("Serve un'informazione", ex.Message, "Warn", PrimaryAction.ChooseExe, "Scegli l'eseguibile…");
+            SetCard(Loc.T("gd.needInfo"), ex.Message, "Warn", PrimaryAction.ChooseExe, Loc.T("gd.chooseExe"));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -201,23 +202,23 @@ public sealed partial class GameDetailViewModel : ObservableObject
     private async Task UpdateSummaryAsync(GameContext ctx)
     {
         var n = ctx.State.Components.Count;
-        SummaryComponents = n == 0 ? "Nessun componente installato" : n == 1 ? "1 componente attivo" : $"{n} componenti attivi";
+        SummaryComponents = n == 0 ? Loc.T("gd.sum.none") : n == 1 ? Loc.T("gd.sum.one") : Loc.F("gd.sum.many", n);
         var w = Warnings.Count;
-        SummaryWarnings = w == 0 ? "" : w == 1 ? "1 avviso" : $"{w} avvisi";
+        SummaryWarnings = w == 0 ? "" : w == 1 ? Loc.T("gd.warn.one") : Loc.F("gd.warn.many", w);
         if (!NrCostIds.Any(ctx.Installed)) { SummaryNr = ""; SummaryNrTip = ""; return; }
         var log = System.IO.Path.Combine(ctx.Folder, "ReShade.log");
         var cost = await Task.Run(() => NrCostReader.Read(log));
-        var it = System.Globalization.CultureInfo.GetCultureInfo("it-IT");
+        var ui = Loc.Instance.Culture;
         if (cost == null)
         {
-            SummaryNr = "DLSS 5 NR: avvia il gioco per misurarne il costo";
+            SummaryNr = Loc.T("gd.nr.launch");
             SummaryNrTip = "";
         }
         else
         {
-            SummaryNr = $"DLSS 5 NR: {cost.GpuMs.ToString("0.0", it)} ms per fotogramma"
+            SummaryNr = Loc.F("gd.nr.cost", cost.GpuMs.ToString("0.0", ui))
                         + (cost.HasFps ? $" (≈ {cost.FpsWithout} → {cost.FpsWith} FPS)" : "");
-            SummaryNrTip = "Tempo che DLSS 5 NR aggiunge a ogni fotogramma, misurato dall'add-on durante l'ultima partita (ReShade.log).";
+            SummaryNrTip = Loc.T("gd.nr.tip");
         }
     }
 
@@ -238,43 +239,43 @@ public sealed partial class GameDetailViewModel : ObservableObject
 
         if (installed != null)
         {
-            var how = installed == NrPath.OptiScaler ? "tramite OptiScaler" : "tramite ReShade";
-            var menu = installed == NrPath.OptiScaler ? "premi Insert per aprire OptiScaler" : "premi Home per aprire ReShade";
-            SetCard($"DLSS 5 attivo {how}",
-                $"Avvia il gioco, {menu} e controlla che Neural Rendering sia acceso. Dopo qualche minuto di gioco premi «Ha funzionato?».",
-                "Accent", PrimaryAction.Verify, "Ha funzionato?");
+            var how = Loc.T(installed == NrPath.OptiScaler ? "gd.how.opti" : "gd.how.reshade");
+            var menu = Loc.T(installed == NrPath.OptiScaler ? "gd.menu.opti" : "gd.menu.reshade");
+            SetCard(Loc.F("gd.active.title", how),
+                Loc.F("gd.active.text", menu),
+                "Accent", PrimaryAction.Verify, Loc.T("gd.worked"));
         }
         else if (legacyNr != null)
         {
-            SetCard("DLSS 5 installato con HDLSS5 1.x",
-                "Funziona già, ma lo gestisce la versione precedente. Portalo sulla 2.0 per verificarlo, aggiornarlo e toglierlo da qui: i file del gioco non cambiano.",
-                "Warn", PrimaryAction.AdoptLegacy, "Porta sulla 2.0");
+            SetCard(Loc.T("gd.legacy.title"),
+                Loc.T("gd.legacy.text"),
+                "Warn", PrimaryAction.AdoptLegacy, Loc.T("gd.legacy.btn"));
             PlanSteps.Add(legacyNr.Title);
         }
         else if (foreignNr != null)
         {
-            SetCard($"DLSS 5 installato da {foreignNr.Install.Source}",
-                "Per gestirlo da qui (verifica, aggiornamenti, rimozione sicura) importalo in HDLSS5: i file del gioco non cambiano.",
-                "Warn", PrimaryAction.ImportForeign, "Importa in HDLSS5");
+            SetCard(Loc.F("gd.foreign.title", foreignNr.Install.Source),
+                Loc.T("gd.foreign.text"),
+                "Warn", PrimaryAction.ImportForeign, Loc.T("comp.importHdlss"));
             PlanSteps.Add(foreignNr.Title);
         }
         else if (!ctx.Gpu.SupportsNr)
         {
-            SetCard("DLSS 5 non disponibile su questo PC", "Serve una scheda NVIDIA RTX 4000 o 5000.", "Warn", PrimaryAction.None);
+            SetCard(Loc.T("gd.noGpu.title"), Loc.T("gd.noGpu.text"), "Warn", PrimaryAction.None);
         }
         else if (ctx.Api == GraphicsApi.Unknown)
         {
-            SetCard("Prima scegli la grafica del gioco",
-                "Non riesco a capire se il gioco usa DirectX 11, DirectX 12 o Vulkan: indicalo e poi potrai installare DLSS 5.",
-                "Warn", PrimaryAction.ChooseExe, "Imposta la grafica…");
+            SetCard(Loc.T("gd.noApi.title"),
+                Loc.T("gd.noApi.text"),
+                "Warn", PrimaryAction.ChooseExe, Loc.T("gd.noApi.btn"));
         }
         else
         {
-            SetCard("DLSS 5 non ancora installato", MethodExplanation, "Text", PrimaryAction.EnableNr,
-                Method == NrMethod.OptiScaler ? "Installa DLSS 5 con OptiScaler" : "Installa DLSS 5 con ReShade");
+            SetCard(Loc.T("gd.none.title"), MethodExplanation, "Text", PrimaryAction.EnableNr,
+                Loc.T(Method == NrMethod.OptiScaler ? "gd.none.btnOpti" : "gd.none.btnReShade"));
             foreach (var id in NrAdvisor.Components[Path].Where(id => !ctx.Installed(id)))
                 PlanSteps.Add(ComponentCatalog.NameOf(id));
-            PlanSteps.Add($"Modello DLSS 5 per {ctx.Gpu.Name.Replace("NVIDIA GeForce ", "")}");
+            PlanSteps.Add(Loc.F("gd.step.model", ctx.Gpu.Name.Replace("NVIDIA GeForce ", "")));
         }
         OnPropertyChanged(nameof(HasPlanSteps));
         UpdateBanner(legacyNr, foreignNr);
@@ -288,15 +289,15 @@ public sealed partial class GameDetailViewModel : ObservableObject
         var foreign = Foreign.Where(f => f != shownForeign).ToList();
         if (legacy.Count > 0)
         {
-            BannerText = $"Altri {legacy.Count} componenti installati con HDLSS5 1.x (ReShade, HDR, loader…). Portali sulla 2.0 per gestirli da qui.";
+            BannerText = Loc.F("gd.banner.legacy", legacy.Count);
             BannerAction = PrimaryAction.AdoptLegacy;
-            BannerLabel = "Porta sulla 2.0";
+            BannerLabel = Loc.T("gd.legacy.btn");
         }
         else if (foreign.Count > 0)
         {
-            BannerText = $"Altri {foreign.Count} componenti installati da un altro programma ({string.Join(", ", foreign.Select(f => f.Install.ComponentName))}). Importali per gestirli da qui.";
+            BannerText = Loc.F("gd.banner.foreign", foreign.Count, string.Join(", ", foreign.Select(f => f.Install.ComponentName)));
             BannerAction = PrimaryAction.ImportForeign;
-            BannerLabel = "Importa in HDLSS5";
+            BannerLabel = Loc.T("comp.importHdlss");
         }
         else BannerAction = PrimaryAction.None;
         OnPropertyChanged(nameof(HasBanner));
@@ -327,15 +328,15 @@ public sealed partial class GameDetailViewModel : ObservableObject
         : Context.Api == GraphicsApi.DX12 && Recommendation?.HasNativeDlss == true ? NrPath.Native : NrPath.Feeder;
 
     public string ReShadeDescription => ReShadePath == NrPath.Native
-        ? "Add-on RenoDX NR per ReShade, usa il DLSS del gioco. Si accende dal menu ReShade (tasto Home)."
-        : "Add-on per ReShade con Feeder: per giochi senza DLSS o non DirectX 12. Sperimentale. Si accende dal menu ReShade (tasto Home).";
-    public string OptiDescription => "OptiScaler sostituisce l'upscaler del gioco e applica DLSS 5 (build F5). Si regola dal menu OptiScaler (tasto Insert). Per DirectX 11/12.";
+        ? Loc.T("gd.desc.native")
+        : Loc.T("gd.desc.feeder");
+    public string OptiDescription => Loc.T("gd.desc.opti");
 
     private string MethodExplanation => Method == NrMethod.OptiScaler
-        ? "Metodo scelto: OptiScaler. Dopo l'installazione attiva DLSS nelle opzioni grafiche del gioco e apri il menu OptiScaler (Insert)."
+        ? Loc.T("gd.expl.opti")
         : ReShadePath == NrPath.Native
-            ? "Metodo scelto: ReShade con RenoDX NR. Il gioco ha già DLSS: è il metodo più stabile. Dopo l'installazione apri ReShade (Home) e accendi Neural Rendering."
-            : "Metodo scelto: ReShade con Feeder, perché il gioco non ha DLSS o non usa DirectX 12. È sperimentale: possono comparire scie leggere.";
+            ? Loc.T("gd.expl.native")
+            : Loc.T("gd.expl.feeder");
 
     partial void OnMethodChanged(NrMethod value)
     {
@@ -377,7 +378,7 @@ public sealed partial class GameDetailViewModel : ObservableObject
     public string TabReShadeLabel => TabLabel("ReShade", GameTab.ReShade);
     public string TabOptiLabel => TabLabel("OptiScaler", GameTab.OptiScaler);
     public string TabDllLabel => TabLabel("DLL", GameTab.Dll);
-    public string TabOtherLabel => TabLabel("Altro", GameTab.Other);
+    public string TabOtherLabel => TabLabel(Loc.T("tab.other"), GameTab.Other);
     public bool TabEmpty => TabComponents.Count == 0;
 
     private string TabLabel(string name, GameTab tab)
@@ -388,10 +389,10 @@ public sealed partial class GameDetailViewModel : ObservableObject
 
     public string TabDescription => Tab switch
     {
-        GameTab.ReShade => "ReShade è il caricatore degli add-on. Qui c'è tutto ciò che passa da ReShade: DLSS 5 (RenoDX NR o Feeder), HDR, generazione fotogrammi e shader.",
-        GameTab.OptiScaler => "OptiScaler sostituisce l'upscaler del gioco. Build F5 = DLSS 5 dentro OptiScaler (usa il modello NR della scheda DLL); build Standard = solo upscaling. Se usi anche ReShade (HDR, add-on), HDLSS5 lo fa caricare da OptiScaler: niente doppio aggancio.",
-        GameTab.Dll => "Le DLL NVIDIA: il modello DLSS 5 (nvngx_dlssnr.dll, usato sia da ReShade sia da OptiScaler), DLSS e Streamline del gioco. Puoi aggiornarle o tornare alle originali. Per tutti i giochi insieme usa la pagina DLL a sinistra.",
-        _ => "Strumenti per motori specifici: HDR per Unreal, UE4SS, ASI Loader, REFramework.",
+        GameTab.ReShade => Loc.T("gd.tab.reshade"),
+        GameTab.OptiScaler => Loc.T("gd.tab.opti"),
+        GameTab.Dll => Loc.T("gd.tab.dll"),
+        _ => Loc.T("gd.tab.other"),
     };
 
     partial void OnTabChanged(GameTab value)
@@ -437,7 +438,7 @@ public sealed partial class GameDetailViewModel : ObservableObject
     {
         var ctx = Context;
         if (ctx == null) return;
-        await Main.RunAsync("Compatibilità ReShade · OptiScaler", async (progress, cancel) =>
+        await Main.RunAsync(Loc.T("gd.op.compat"), async (progress, cancel) =>
         {
             ctx.Refresh();
             var plan = await Task.Run(() => Compatibility.PlanFix(ctx), cancel);
@@ -456,7 +457,7 @@ public sealed partial class GameDetailViewModel : ObservableObject
         var release = NrRules.ModelToRelease(ctx, componentId);
         if (release == null) return;
         var plan = await RemovalFlow.PlanAsync(Main.Host, ctx, release, cancel);
-        plan.Notes.Insert(0, $"Il «{ComponentCatalog.NameOf(release)}» installato a parte viene tolto: {ComponentCatalog.NameOf(componentId)} include già il modello e lo reinstalla subito dopo.");
+        plan.Notes.Insert(0, Loc.F("gd.releaseNote", ComponentCatalog.NameOf(release), ComponentCatalog.NameOf(componentId)));
         if (!plan.IsEmpty)
         {
             if (!Dialogs.ConfirmPlan(plan)) throw new OperationCanceledException();
@@ -498,10 +499,9 @@ public sealed partial class GameDetailViewModel : ObservableObject
         var missing = NrAdvisor.Components[path].Where(id => !ctx.Installed(id)).Select(ComponentCatalog.Get).ToList();
         if (missing.Count == 0) return;
         if (!Advanced && !Dialogs.Confirm(
-                $"Installo DLSS 5 su {Game.Name} tramite {(Path == NrPath.OptiScaler ? "OptiScaler" : "ReShade")}.\n\nVerrà installato:\n• {string.Join("\n• ", PlanSteps)}\n\n" +
-                "Ogni file sostituito viene salvato prima e puoi annullare tutto con «Disattiva» o dalla cronologia. Chiudi il gioco prima di continuare."))
+                Loc.F("gd.enable.confirm", Game.Name, Path == NrPath.OptiScaler ? "OptiScaler" : "ReShade", string.Join("\n• ", PlanSteps))))
             return;
-        var ok = await Main.RunAsync("Attivazione del Neural Rendering", async (progress, cancel) =>
+        var ok = await Main.RunAsync(Loc.T("gd.enable.op"), async (progress, cancel) =>
         {
             foreach (var component in missing)
             {
@@ -514,8 +514,8 @@ public sealed partial class GameDetailViewModel : ObservableObject
             }
         });
         await AfterChangeAsync(path == NrPath.OptiScaler ? OptiScalerComponent.ComponentId : ReShadeComponent.ComponentId);
-        if (ok && path == NrPath.OptiScaler) Dialogs.Info("Fatto. Avvia il gioco, attiva DLSS nelle opzioni grafiche e premi Insert per aprire OptiScaler: controlla che Neural Rendering sia acceso.\n\nDopo qualche minuto di gioco torna qui e premi «Ha funzionato?».");
-        else if (ok) Dialogs.Info("Fatto. Avvia il gioco, premi Home per aprire ReShade e verifica che Neural Rendering sia acceso.\n\nDopo qualche minuto di gioco torna qui e premi «Ha funzionato?».");
+        if (ok && path == NrPath.OptiScaler) Dialogs.Info(Loc.T("gd.enable.doneOpti"));
+        else if (ok) Dialogs.Info(Loc.T("gd.enable.doneReShade"));
     }
 
     private async Task AdoptAllAsync()
@@ -527,12 +527,12 @@ public sealed partial class GameDetailViewModel : ObservableObject
         var items = Legacy.Where(l => l.IsStale || l.CanAdopt && !ctx.Installed(l.Install.AdoptableAs!)).ToList();
         if (data == null && items.Any(l => l.Install.Files.Any(f => f.Before != null)))
         {
-            Dialogs.Error("Per portare i componenti sulla 2.0 servono i backup della 1.x.\n\nApri Impostazioni e indica la cartella di HDLSS5 1.x (quella che contiene «data»).");
+            Dialogs.Error(Loc.T("gd.adopt.needBackups"));
             return;
         }
-        if (!Dialogs.Confirm($"Porto sulla 2.0 {items.Count} componenti installati con la 1.x:\n• {string.Join("\n• ", items.Select(i => i.Title))}\n\nI file del gioco non cambiano: la 2.0 li prende solo in gestione.")) return;
+        if (!Dialogs.Confirm(Loc.F("gd.adopt.confirm", items.Count, string.Join("\n• ", items.Select(i => i.Title))))) return;
         var failed = new List<string>();
-        await Main.RunAsync("Passaggio alla 2.0", async (progress, cancel) =>
+        await Main.RunAsync(Loc.T("gd.adopt.op"), async (progress, cancel) =>
         {
             foreach (var item in items)
             {
@@ -553,8 +553,8 @@ public sealed partial class GameDetailViewModel : ObservableObject
             }
         });
         await ReloadAsync();
-        Dialogs.Info(failed.Count == 0 ? "Fatto: tutti i componenti ora sono gestiti dalla 2.0."
-            : $"Completato con {failed.Count} eccezioni (restano gestiti dalla 1.x):\n\n{string.Join("\n", failed)}");
+        Dialogs.Info(failed.Count == 0 ? Loc.T("gd.adopt.ok")
+            : Loc.F("gd.adopt.partial", failed.Count, string.Join("\n", failed)));
     }
 
     /// <summary>Imports every recognised foreign install, one confirmation.</summary>
@@ -563,10 +563,9 @@ public sealed partial class GameDetailViewModel : ObservableObject
         var ctx = Context;
         if (ctx == null || Foreign.Count == 0) return;
         var items = Foreign.ToList();
-        if (!Dialogs.Confirm($"Importo in HDLSS5:\n• {string.Join("\n• ", items.Select(i => i.Title))}\n\nI file del gioco non cambiano: HDLSS5 li prende solo in gestione. " +
-                             "Se il programma originale ha lasciato un backup, «Rimuovi» rimetterà quello.")) return;
+        if (!Dialogs.Confirm(Loc.F("gd.import.confirm", string.Join("\n• ", items.Select(i => i.Title))))) return;
         var failed = new List<string>();
-        await Main.RunAsync("Importazione in HDLSS5", async (progress, cancel) =>
+        await Main.RunAsync(Loc.T("gd.import.op"), async (progress, cancel) =>
         {
             foreach (var item in items)
             {
@@ -581,14 +580,14 @@ public sealed partial class GameDetailViewModel : ObservableObject
             }
         });
         await ReloadAsync();
-        Dialogs.Info(failed.Count == 0 ? "Fatto: i componenti ora sono gestiti da HDLSS5." : $"Completato con {failed.Count} eccezioni:\n\n{string.Join("\n", failed)}");
+        Dialogs.Info(failed.Count == 0 ? Loc.T("gd.import.ok") : Loc.F("gd.import.partial", failed.Count, string.Join("\n", failed)));
     }
 
     internal async Task ImportOneAsync(ForeignInstall install)
     {
         var ctx = Context;
         if (ctx == null) return;
-        var ok = await Main.RunAsync($"Importazione · {install.ComponentName}", async (progress, cancel) =>
+        var ok = await Main.RunAsync(Loc.F("gd.import.one", install.ComponentName), async (progress, cancel) =>
         {
             var plan = await Task.Run(() => { ComponentService.CheckGlobal(ctx); return ForeignInstalls.PlanImport(ctx, install); }, cancel);
             if (!Dialogs.ConfirmPlan(plan)) throw new OperationCanceledException();
@@ -612,7 +611,7 @@ public sealed partial class GameDetailViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or HdlssException)
         {
-            VerifyTitle = "Non riesco a leggere i log del gioco.";
+            VerifyTitle = Loc.T("gd.verify.fail");
             VerifyDetails = ex.Message;
             VerifyBrushKey = "Warn";
         }
@@ -626,8 +625,8 @@ public sealed partial class GameDetailViewModel : ObservableObject
         var installed = ctx == null ? null : NrAdvisor.Installed(ctx);
         if (ctx == null || installed == null) return;
         var id = NrAdvisor.Components[installed.Value].Last();
-        if (!Advanced && !Dialogs.Confirm($"Disattivo il Neural Rendering su {Game.Name}?\n\nVengono rimessi i file originali. ReShade e le altre mod restano installati.")) return;
-        await Main.RunAsync("Disattivazione del Neural Rendering", async (progress, cancel) =>
+        if (!Advanced && !Dialogs.Confirm(Loc.F("gd.disable.confirm", Game.Name))) return;
+        await Main.RunAsync(Loc.T("gd.disable.op"), async (progress, cancel) =>
         {
             var plan = await RemovalFlow.PlanAsync(Main.Host, ctx, id, cancel);
             if (Advanced && !Dialogs.ConfirmPlan(plan)) throw new OperationCanceledException();
@@ -639,8 +638,8 @@ public sealed partial class GameDetailViewModel : ObservableObject
 
     /// <summary>A game warning, with a button to the «Eseguibile» dialog when that is where it is solved.</summary>
     private NoticeViewModel WarningNotice(string text) =>
-        text.Contains("«Eseguibile", StringComparison.Ordinal)
-            ? NoticeViewModel.FromText(text, "Eseguibile", EditExeCommand)
+        text.Contains("«Eseguibile", StringComparison.Ordinal) || text.Contains("«Executable & API", StringComparison.Ordinal)
+            ? NoticeViewModel.FromText(text, Loc.T("notice.exe"), EditExeCommand)
             : NoticeViewModel.FromText(text);
 
     [RelayCommand]
@@ -661,7 +660,7 @@ public sealed partial class GameDetailViewModel : ObservableObject
         {
             if (Context != null) GameLauncher.Launch(Context);
             else GameLauncher.Launch(Game, Main.Host.Settings);
-            Main.Status = $"Avvio di {Game.Name}…";
+            Main.Status = Loc.F("gd.launching", Game.Name);
         }
         catch (HdlssException ex) { Dialogs.Error(ex.Message); }
         catch (System.ComponentModel.Win32Exception ex) { Dialogs.Error(ex.Message); }
@@ -684,9 +683,9 @@ public sealed partial class GameDetailViewModel : ObservableObject
 public sealed partial class ForeignItemViewModel(GameDetailViewModel owner, ForeignInstall install) : ObservableObject
 {
     public ForeignInstall Install { get; } = install;
-    public string Title => $"{Install.ComponentName} · da {Install.Source}";
+    public string Title => Loc.F("gd.foreign.item", Install.ComponentName, Install.Source);
     public string Detail => string.Join(", ", Install.Files.Select(f => f.Path).Take(4)) + (Install.Files.Count > 4 ? $" (+{Install.Files.Count - 4})" : "")
-                            + (Install.WithBackup > 0 ? $" · {Install.WithBackup} originali salvati" : "");
+                            + (Install.WithBackup > 0 ? Loc.F("gd.foreign.saved", Install.WithBackup) : "");
 
     [RelayCommand] private Task ImportAsync() => owner.ImportOneAsync(Install);
 }
@@ -695,7 +694,7 @@ public sealed partial class LegacyItemViewModel(GameDetailViewModel owner, Legac
 {
     public LegacyInstall Install { get; } = install;
     public string Title => Install.Title;
-    public string Detail => $"{Install.Files.Count} file · {Install.Marker}" + (IsStale ? " · superato: i file sono cambiati dopo la 1.x" : "");
+    public string Detail => Loc.F(Install.Files.Count == 1 ? "gd.legacy.file1" : "gd.legacy.files", Install.Files.Count, Install.Marker) + (IsStale ? Loc.T("gd.legacy.stale") : "");
     public bool IsStale { get; } = LegacyInstalls.IsStale(install);
     public bool CanAdopt => Install.AdoptableAs != null && !IsStale;
 
@@ -708,11 +707,11 @@ public sealed partial class LegacyItemViewModel(GameDetailViewModel owner, Legac
         var data = LegacyInstalls.FindDataFolder(host.Settings.LegacyAppDir, host.Paths.AppDir);
         if (data == null && Install.Files.Any(f => f.Before != null))
         {
-            Dialogs.Error("Cartella dati di HDLSS5 1.x non trovata (serve per i backup). Indicala in Impostazioni.");
+            Dialogs.Error(Loc.T("gd.legacy.noData"));
             return;
         }
         var component = ComponentCatalog.Get(Install.AdoptableAs);
-        var ok = await owner.Main.RunAsync("Adozione installazione 1.x", async (progress, cancel) =>
+        var ok = await owner.Main.RunAsync(Loc.T("gd.legacy.opAdopt"), async (progress, cancel) =>
         {
             var plan = await Task.Run(() =>
             {
@@ -739,10 +738,10 @@ public sealed partial class LegacyItemViewModel(GameDetailViewModel owner, Legac
         var data = LegacyInstalls.FindDataFolder(host.Settings.LegacyAppDir, host.Paths.AppDir);
         if (data == null)
         {
-            Dialogs.Error("Cartella dati di HDLSS5 1.x non trovata. Indicala in Impostazioni → Cartella di HDLSS5 1.x.");
+            Dialogs.Error(Loc.T("gd.legacy.noData2"));
             return;
         }
-        var ok = await owner.Main.RunAsync("Ripristino installazione 1.x", async (progress, cancel) =>
+        var ok = await owner.Main.RunAsync(Loc.T("gd.legacy.opRestore"), async (progress, cancel) =>
         {
             var plan = await Task.Run(() =>
             {

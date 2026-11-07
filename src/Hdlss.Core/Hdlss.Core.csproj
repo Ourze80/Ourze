@@ -6,5 +6,6 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Hdlss.Core.Tests" />
+    <EmbeddedResource Include="Text\*.json" />
   </ItemGroup>
 </Project>

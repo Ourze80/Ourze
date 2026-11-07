@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using Hdlss.Core.Diagnostics;
 using Hdlss.Core.IO;
 using Hdlss.Core.Storage;
@@ -19,18 +20,18 @@ public sealed class TransactionEngine(ContentStore store, StateStore states, str
     public Journal Apply(ChangePlan plan, IProgress<OperationProgress>? progress = null)
     {
         if (plan.StateStamp != states.Stamp(plan.Folder))
-            throw new HdlssException("Lo stato del gioco è cambiato dopo l'anteprima: ripeti l'operazione.");
+            throw new HdlssException(Tx.Get("tx.stateChanged"));
         var duplicate = plan.Files.GroupBy(f => f.Path, StringComparer.OrdinalIgnoreCase).FirstOrDefault(g => g.Count() > 1);
-        if (duplicate != null) throw new HdlssException($"Percorso duplicato nel piano: {duplicate.Key}");
+        if (duplicate != null) throw new HdlssException(Tx.Get("tx.duplicatePath", duplicate.Key));
 
         log.Info($"{(plan.IsRemoval ? "RIMOZIONE" : "INSTALLAZIONE")} · {plan.GameName} · {plan.ComponentName} {plan.Version}");
-        progress?.Report(new("Verifica dei file…", 0));
+        progress?.Report(new(Tx.Get("tx.verifying"), 0));
 
         var resolved = plan.Files.Select(f => (Op: f, Full: Locations.Resolve(plan.Folder, plan.Roots, f.Path))).ToList();
         foreach (var (op, full) in resolved)
         {
             if (!FileHash.Equal(FileHash.OfFileOrNull(full), op.Expected))
-                throw new HdlssException($"File cambiato dopo l'anteprima: {op.Path}. Ripeti l'operazione.");
+                throw new HdlssException(Tx.Get("tx.fileChanged", op.Path));
             if (op.NewHash != null) store.Open(op.NewHash);
         }
 
@@ -61,18 +62,18 @@ public sealed class TransactionEngine(ContentStore store, StateStore states, str
             {
                 var (op, full) = resolved[i];
                 var entry = journal.Entries[i];
-                progress?.Report(new($"{(op.IsDelete ? "Rimozione" : "Scrittura")} {op.Path}", 100.0 * i / Math.Max(1, resolved.Count)));
+                progress?.Report(new(Tx.Get(op.IsDelete ? "tx.removing" : "tx.writing", op.Path), 100.0 * i / Math.Max(1, resolved.Count)));
                 touched.Add(entry);
                 if (op.IsDelete) DeleteFile(full, Locations.RootOf(plan.Folder, plan.Roots, op.Path));
                 else WriteFromStore(full, op.NewHash!, op.Attributes ?? (entry.Before != null ? entry.Attributes : FileAttributes.Normal));
                 if (!FileHash.Equal(FileHash.OfFileOrNull(full), op.NewHash))
-                    throw new IOException($"Verifica fallita dopo la scrittura: {op.Path}");
+                    throw new IOException(Tx.Get("tx.verifyFailed", op.Path));
                 log.Debug($"{(op.IsDelete ? "rimosso" : "scritto")} {op.Path}");
             }
             UpdateState(plan);
             journal.Status = JournalStatus.Completed;
             SaveJournal(journal);
-            progress?.Report(new("Operazione completata", 100));
+            progress?.Report(new(Tx.Get("tx.done"), 100));
             log.Info($"Completato · journal {journal.Id}");
             return journal;
         }
@@ -84,8 +85,8 @@ public sealed class TransactionEngine(ContentStore store, StateStore states, str
             journal.Error = ex.Message + (errors.Count > 0 ? " | " + string.Join("; ", errors) : "");
             SaveJournal(journal);
             throw new HdlssException(errors.Count == 0
-                ? $"{ex.Message}\nNessun file è stato lasciato modificato."
-                : $"{ex.Message}\nRipristino incompleto ({string.Join("; ", errors)}). Usa 'Cronologia' per recuperare dal journal {journal.Id}.", ex);
+                ? Tx.Get("tx.rolledBack", ex.Message)
+                : Tx.Get("tx.rollbackIncomplete", ex.Message, string.Join("; ", errors), journal.Id), ex);
         }
     }
 
@@ -93,17 +94,17 @@ public sealed class TransactionEngine(ContentStore store, StateStore states, str
     public void Undo(Journal journal)
     {
         if (journal.Status != JournalStatus.Completed && journal.Status != JournalStatus.NeedsRecovery)
-            throw new HdlssException("Questa operazione non può essere annullata.");
+            throw new HdlssException(Tx.Get("tx.cannotUndo"));
         foreach (var e in journal.Entries)
         {
             var full = Locations.Resolve(journal.Folder, journal.Roots, e.Path);
             var current = FileHash.OfFileOrNull(full);
             if (!FileHash.Equal(current, e.After) && !FileHash.Equal(current, e.Before))
-                throw new HdlssException($"{e.Path} è stato modificato dopo l'operazione: annullamento fermato.");
+                throw new HdlssException(Tx.Get("tx.modifiedAfter", e.Path));
             if (e.Before != null) store.Open(e.Before);
         }
         var errors = Rollback(journal.Folder, journal.Roots, journal.Entries);
-        if (errors.Count > 0) throw new HdlssException("Annullamento incompleto: " + string.Join("; ", errors));
+        if (errors.Count > 0) throw new HdlssException(Tx.Get("tx.undoIncomplete", string.Join("; ", errors)));
         if (journal.StateBefore != null) states.Save(journal.StateBefore);
         journal.Status = JournalStatus.Undone;
         SaveJournal(journal);

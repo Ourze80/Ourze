@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Hdlss.Core.Diagnostics;
@@ -70,8 +71,8 @@ public sealed class DlssUpdateComponent : ComponentBase
 {
     public const string ComponentId = "dlss-update";
     public override string Id => ComponentId;
-    public override string Name => "DLL DLSS del gioco";
-    public override string Description => "Sostituisce le DLL DLSS del gioco (Super Resolution, Frame Generation, Ray Reconstruction) con l'ultima versione firmata NVIDIA, o con quella scelta nella pagina DLL. «Rimuovi» rimette quelle originali.";
+    public override string Name => Tx.Get("dlss.name");
+    public override string Description => Tx.Get("dlss.desc");
     /// <summary>Option key: "latest" or an exact version such as "310.9.1.0" (applied per DLL when available).</summary>
     public const string VersionOption = "dlss-version";
     public override ComponentCategory Category => ComponentCategory.Upscaling;
@@ -96,12 +97,12 @@ public sealed class DlssUpdateComponent : ComponentBase
     {
         var files = Inspect(ctx, null);
         return files.Count == 0 ? null
-            : new ComponentStatus(ComponentStatusKind.External, "Originali del gioco · " + string.Join(" · ", files.GroupBy(f => f.Label).Select(g => $"{g.Key} {g.Min(f => f.Current)}")));
+            : new ComponentStatus(ComponentStatusKind.External, Tx.Get("dlss.status.originals", string.Join(" · ", files.GroupBy(f => f.Label).Select(g => $"{g.Key} {g.Min(f => f.Current)}"))));
     }
 
     protected override void CheckBlockers(GameContext ctx, List<string> blockers)
     {
-        if (Inspect(ctx, null).Count == 0) blockers.Add("Nessuna DLL DLSS nel gioco: non c'è nulla da aggiornare. Questa scheda serve ai giochi che includono DLSS.");
+        if (Inspect(ctx, null).Count == 0) blockers.Add(Tx.Get("dlss.block.none"));
     }
 
     private static Dictionary<string, DlssBuild> Choose(Dictionary<string, List<DlssBuild>> all, Version? wanted)
@@ -141,14 +142,14 @@ public sealed class DlssUpdateComponent : ComponentBase
         IProgress<OperationProgress>? progress, CancellationToken cancel)
     {
         var notesOnTop = new List<string>();
-        progress?.Report(new("Controllo le versioni DLSS di NVIDIA…"));
+        progress?.Report(new(Tx.Get("dlss.progress")));
         var all = await DlssCatalog.AllAsync(ctx.Services.Http, cancel);
         var wanted = options.TryGetValue(VersionOption, out var w) && Version.TryParse(w, out var wv) ? wv : null;
         var latest = Choose(all, wanted);
         var files = Inspect(ctx, latest);
         if (wanted != null)
             foreach (var kind in latest.Where(p => p.Value.Version != wanted && files.Any(f => Path.GetFileName(f.FullPath).Equals(p.Key, StringComparison.OrdinalIgnoreCase))))
-                notesOnTop.Add($"{DlssCatalog.Label(kind.Key)}: la versione {wanted} non esiste, uso la più recente ({kind.Value.Version}).");
+                notesOnTop.Add(Tx.Get("dlss.note.noVersion", DlssCatalog.Label(kind.Key), wanted, kind.Value.Version));
         var plan = ctx.NewPlan(this, VersionLabel(latest));
         plan.AdoptGameChanges = true; // the game's own files: an update or file check may replace them
         foreach (var n in notesOnTop) plan.Note(n);
@@ -165,24 +166,24 @@ public sealed class DlssUpdateComponent : ComponentBase
                 if (f.Current == build.Version)
                 {
                     plan.Want(PathGuard.Normalize("@root/" + f.Relative)); // keep it managed, don't release it
-                    plan.Note($"{f.Relative}: già alla versione {build.Version}.");
+                    plan.Note(Tx.Get("dlss.note.same", f.Relative, build.Version));
                     continue;
                 }
                 if (!downloaded.TryGetValue(name, out var dll))
                 {
                     var zip = await ctx.Services.Http.DownloadAsync(build.Url, Path.GetFileName(new Uri(build.Url).AbsolutePath), null, 250_000_000, progress, cancel);
-                    if (!DlssCatalog.Md5(zip).Equals(build.ZipMd5, StringComparison.OrdinalIgnoreCase)) throw new HdlssException($"{name}: archivio diverso dal catalogo.");
+                    if (!DlssCatalog.Md5(zip).Equals(build.ZipMd5, StringComparison.OrdinalIgnoreCase)) throw new HdlssException(Tx.Get("dlss.err.zip", name));
                     var dir = Path.Combine(temp, name);
                     Archives.Extract(zip, dir, n => n.Equals(name, StringComparison.OrdinalIgnoreCase), 250_000_000);
                     dll = Path.Combine(dir, name);
                     if (!File.Exists(dll) || !DlssCatalog.Md5(dll).Equals(build.DllMd5, StringComparison.OrdinalIgnoreCase) || !PeFile.IsPe64(dll))
-                        throw new HdlssException($"{name}: file diverso dal catalogo.");
+                        throw new HdlssException(Tx.Get("dlss.err.file", name));
                     downloaded[name] = dll;
                 }
                 plan.AddFile("@root/" + f.Relative, dll);
                 plan.Note($"{f.Relative}: {f.Current} → {build.Version}");
             }
-            plan.Note("Fonte: catalogo DLSS Swapper (firme NVIDIA verificate). Nei giochi online con anti-cheat è meglio non sostituire le DLL.");
+            plan.Note(Tx.Get("dlss.note.source"));
             return plan.Build();
         }
         finally { Releases.Cleanup(temp); }

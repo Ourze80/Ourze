@@ -1,4 +1,5 @@
 using Hdlss.Core.Games;
+using Hdlss.Core.Text;
 
 namespace Hdlss.Core.Components;
 
@@ -11,11 +12,11 @@ public sealed record GameSummary(GameBadge Badge, string Text)
 
     public static GameSummary Compute(Game game, Services services)
     {
-        if (game.ProtectedReason != null) return new(GameBadge.Protected, "Cartella protetta · solo avvio");
-        if (!game.HasExe) return new(GameBadge.NoExe, "Scegli l'eseguibile");
+        if (game.ProtectedReason != null) return new(GameBadge.Protected, Tx.Get("sum.protected"));
+        if (!game.HasExe) return new(GameBadge.NoExe, Tx.Get("sum.noExe"));
         var folder = game.Folder;
         if (Directory.Exists(Path.Combine(game.Root, "EasyAntiCheat")) || Directory.Exists(Path.Combine(game.Root, "BattlEye")))
-            return new(GameBadge.AntiCheat, "Anti-cheat · mod sconsigliate");
+            return new(GameBadge.AntiCheat, Tx.Get("sum.antiCheat"));
         var state = services.States.Load(game.Id, folder);
         var nr = state.Get(RenoDxNrComponent.ComponentId) != null ? NrPath.Native
                : state.Get(FeederComponent.ComponentId) != null ? NrPath.Feeder
@@ -34,9 +35,9 @@ public sealed record GameSummary(GameBadge Badge, string Text)
         {
             services.Log.Debug($"Stato di {game.Name}: {ex.Message}");
         }
-        if (nr != null) return new(GameBadge.NrActive, legacy ? "NR attivo · resti 1.x" : foreign > 0 ? "NR attivo · mod da importare" : "Neural Rendering attivo");
-        if (legacy) return new(GameBadge.Legacy, "Da portare sulla 2.0");
-        if (foreign > 0) return new(GameBadge.Foreign, foreign == 1 ? "1 mod da importare" : $"{foreign} mod da importare");
-        return new(GameBadge.Ready, state.Components.Count > 0 ? $"{state.Components.Count} componenti · NR non attivo" : "Pronto da configurare");
+        if (nr != null) return new(GameBadge.NrActive, legacy ? Tx.Get("sum.nrLegacy") : foreign > 0 ? Tx.Get("sum.nrForeign") : Tx.Get("sum.nrActive"));
+        if (legacy) return new(GameBadge.Legacy, Tx.Get("sum.legacy"));
+        if (foreign > 0) return new(GameBadge.Foreign, foreign == 1 ? Tx.Get("sum.foreign1") : Tx.Get("sum.foreignN", foreign));
+        return new(GameBadge.Ready, state.Components.Count > 0 ? Tx.Get("sum.components", state.Components.Count) : Tx.Get("sum.ready"));
     }
 }

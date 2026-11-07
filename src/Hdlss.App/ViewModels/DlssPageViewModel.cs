@@ -13,8 +13,8 @@ namespace Hdlss.App.ViewModels;
 public sealed record DllRow(string Kind, string Current, string? Latest, int Folders)
 {
     public bool IsOutdated => Latest != null;
-    public string StateText => IsOutdated ? $"→ {Latest}" : "✓ ultima";
-    public string FoldersText => Folders > 1 ? $"in {Folders} cartelle" : "";
+    public string StateText => IsOutdated ? $"→ {Latest}" : Loc.T("dll.stLatest");
+    public string FoldersText => Folders > 1 ? Loc.F("dll.inFolders", Folders) : "";
 }
 
 /// <summary>One entry of a version drop-down: "latest", an exact version, or "original" (the game's own files).</summary>
@@ -36,7 +36,7 @@ public sealed partial class DlssPageViewModel(MainViewModel main) : ObservableOb
     public bool Loaded { get; private set; }
 
     [ObservableProperty] private bool _checking;
-    [ObservableProperty] private string _summary = "Controllo non ancora eseguito.";
+    [ObservableProperty] private string _summary = Loc.T("dll.notChecked");
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasNewest))] private string _newest = "";
     public bool HasNewest => Newest.Length > 0;
     [ObservableProperty] private int _outdatedCount;
@@ -46,14 +46,23 @@ public sealed partial class DlssPageViewModel(MainViewModel main) : ObservableOb
     internal IReadOnlyList<StreamlineRelease> StreamlineReleases { get; private set; } = [];
 
     public bool HasOutdated => OutdatedCount > 0;
-    partial void OnOutdatedCountChanged(int value) => OnPropertyChanged(nameof(HasOutdated));
+    public string UpdateAllText => Loc.F("dll.updateAll", OutdatedCount);
+    partial void OnOutdatedCountChanged(int value) { OnPropertyChanged(nameof(HasOutdated)); OnPropertyChanged(nameof(UpdateAllText)); }
+
+    /// <summary>Texts are built when the page loads: after a language change, rebuild them.</summary>
+    public async Task OnLanguageChangedAsync()
+    {
+        OnPropertyChanged(nameof(UpdateAllText));
+        if (Loaded) await RefreshAsync();
+        else Summary = Loc.T("dll.notChecked");
+    }
 
     [RelayCommand]
     public async Task RefreshAsync()
     {
         if (Checking) return;
         Checking = true;
-        Summary = "Controllo le DLL DLSS e Streamline dei tuoi giochi…";
+        Summary = Loc.T("dll.checking");
         try
         {
             var host = main.Host;
@@ -70,7 +79,7 @@ public sealed partial class DlssPageViewModel(MainViewModel main) : ObservableOb
             var parts = new List<string>();
             if (LatestDlss != null) parts.Add("DLSS " + string.Join(" · ", LatestDlss.Values.Select(b => $"{DlssCatalog.Label(b.Kind)} {b.Version}")));
             if (StreamlineReleases.Count > 0) parts.Add($"Streamline {StreamlineReleases[0].Version}");
-            Newest = parts.Count == 0 ? "Cataloghi NVIDIA non raggiungibili: mostro solo le versioni installate." : "Più recenti: " + string.Join("   ·   ", parts);
+            Newest = parts.Count == 0 ? Loc.T("dll.unreachable") : Loc.T("dll.newest") + string.Join("   ·   ", parts);
 
             var rows = await Task.Run(() =>
             {
@@ -98,8 +107,8 @@ public sealed partial class DlssPageViewModel(MainViewModel main) : ObservableOb
             Games.Clear();
             foreach (var r in rows.OrderByDescending(r => r.Outdated).ThenBy(r => r.Name)) Games.Add(r);
             OutdatedCount = rows.Count(r => r.Outdated);
-            Summary = rows.Count == 0 ? "Nessun gioco della libreria contiene DLL DLSS o Streamline."
-                : $"{rows.Count} giochi con DLL NVIDIA · {OutdatedCount} con versioni più vecchie delle ultime";
+            Summary = rows.Count == 0 ? Loc.T("dll.none")
+                : Loc.F(rows.Count == 1 ? "dll.summary.one" : "dll.summary.many", rows.Count, OutdatedCount);
             Loaded = true;
         }
         finally { Checking = false; }
@@ -134,7 +143,7 @@ public sealed partial class DlssPageViewModel(MainViewModel main) : ObservableOb
         if (row.DlssChanged) what.Add($"DLSS → {row.SelectedDlss!.Label}");
         if (row.StreamlineChanged) what.Add($"Streamline → {row.SelectedStreamline!.Label}");
         if (what.Count == 0) return;
-        if (!main.Advanced && !Dialogs.Confirm($"{row.Name}\n\n• {string.Join("\n• ", what)}\n\nGli originali restano salvati: puoi sempre tornare a «Originale del gioco». Chiudi il gioco prima di continuare.")) return;
+        if (!main.Advanced && !Dialogs.Confirm(Loc.F("dll.apply.confirm", row.Name, string.Join("\n• ", what)))) return;
         var ok = await main.RunAsync($"DLL · {row.Name}", async (p, c) =>
         {
             if (row.DlssChanged) await ApplyChoice(row.Context, DlssUpdateComponent.ComponentId, DlssUpdateComponent.VersionOption, row.SelectedDlss!, p, c);
@@ -148,11 +157,10 @@ public sealed partial class DlssPageViewModel(MainViewModel main) : ObservableOb
     {
         var rows = Games.Where(g => g.Outdated).ToList();
         if (rows.Count == 0) return;
-        if (!Dialogs.Confirm($"Porto alle versioni più recenti le DLL di {rows.Count} giochi:\n• {string.Join("\n• ", rows.Select(r => r.Name))}\n\n" +
-                             "Gli originali vengono salvati. Chiudi i giochi prima di continuare. Nei giochi online con anti-cheat è meglio non aggiornare.")) return;
+        if (!Dialogs.Confirm(Loc.F("dll.updateAll.confirm", rows.Count, string.Join("\n• ", rows.Select(r => r.Name))))) return;
         var failed = new List<string>();
         var latest = new VersionChoice("", VersionChoice.LatestValue);
-        await main.RunAsync("Aggiornamento DLL di tutti i giochi", async (p, c) =>
+        await main.RunAsync(Loc.T("dll.updateAll.op"), async (p, c) =>
         {
             foreach (var row in rows)
             {
@@ -165,7 +173,7 @@ public sealed partial class DlssPageViewModel(MainViewModel main) : ObservableOb
             }
         });
         await RefreshAsync();
-        Dialogs.Info(failed.Count == 0 ? "Fatto: DLL aggiornate alle versioni più recenti." : $"Completato con {failed.Count} eccezioni:\n\n{string.Join("\n", failed)}");
+        Dialogs.Info(failed.Count == 0 ? Loc.T("dll.updateAll.ok") : Loc.F("dll.updateAll.partial", failed.Count, string.Join("\n", failed)));
     }
 }
 
@@ -196,8 +204,8 @@ public sealed partial class DlssGameViewModel : ObservableObject
         foreach (var group in streamline.GroupBy(f => f.Current))
             rows.Add(new DllRow("Streamline", group.Key?.ToString() ?? "?", latestSl != null && group.Key < latestSl ? latestSl.ToString() : null, group.Count()));
         Rows = rows;
-        FilesTooltip = "File NVIDIA del gioco:\n" + string.Join("\n", dlss.Select(f => $"{f.Relative}   {f.Current}")
-            .Concat(streamline.Select(f => $"{(f.Relative.Length == 0 ? "" : f.Relative + "/")}sl.*.dll   Streamline {f.Current} ({f.Files.Count} moduli)")));
+        FilesTooltip = Loc.T("dll.files") + string.Join("\n", dlss.Select(f => $"{f.Relative}   {f.Current}")
+            .Concat(streamline.Select(f => Loc.F("dll.modules", f.Relative.Length == 0 ? "" : f.Relative + "/", f.Current, f.Files.Count))));
 
         // DLSS drop-down: original · newest · older builds. The current state is pre-selected.
         var currentSr = dlss.FirstOrDefault(f => f.FullPath.EndsWith("nvngx_dlss.dll", StringComparison.OrdinalIgnoreCase))?.Current ?? dlss.FirstOrDefault()?.Current;
@@ -221,11 +229,11 @@ public sealed partial class DlssGameViewModel : ObservableObject
     {
         var list = new List<VersionChoice>
         {
-            new(managed ? "Originale del gioco" : $"Originale del gioco{(current != null ? $" ({current.TrimStart('v')})" : "")} · attuale", VersionChoice.OriginalValue),
+            new(managed ? Loc.T("dll.choice.original") : Loc.F("dll.choice.originalCur", current != null ? $" ({current.TrimStart('v')})" : ""), VersionChoice.OriginalValue),
         };
-        if (versions.Count > 0) list.Add(new($"Più recente ({versions[0].TrimStart('v')})", VersionChoice.LatestValue));
-        foreach (var v in versions.Skip(1)) list.Add(new(v.TrimStart('v') + (managed && v == current ? " · attuale" : ""), v));
-        if (managed && versions.Count > 0 && versions[0] == current) list[1] = list[1] with { Label = list[1].Label + " · attuale", Value = versions[0] };
+        if (versions.Count > 0) list.Add(new(Loc.F("dll.choice.latest", versions[0].TrimStart('v')), VersionChoice.LatestValue));
+        foreach (var v in versions.Skip(1)) list.Add(new(v.TrimStart('v') + (managed && v == current ? Loc.T("dll.choice.current") : ""), v));
+        if (managed && versions.Count > 0 && versions[0] == current) list[1] = list[1] with { Label = list[1].Label + Loc.T("dll.choice.current"), Value = versions[0] };
         return list;
     }
 
@@ -240,7 +248,7 @@ public sealed partial class DlssGameViewModel : ObservableObject
     public string FilesTooltip { get; }
     public IReadOnlyList<VersionChoice> DlssChoices { get; }
     public IReadOnlyList<VersionChoice> StreamlineChoices { get; }
-    public string StateText => Outdated ? "Aggiornamento disponibile" : "Aggiornate" + (Managed ? " · cambiate da HDLSS5" : "");
+    public string StateText => Outdated ? Loc.T("dll.state.outdated") : Loc.T("dll.state.ok") + (Managed ? Loc.T("dll.state.changed") : "");
     public string StateBrushKey => Outdated ? "Warn" : "Success";
     public System.Windows.Media.Brush StateBrush => (System.Windows.Media.Brush)System.Windows.Application.Current.Resources[StateBrushKey];
 
