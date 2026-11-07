@@ -157,7 +157,18 @@ public sealed partial class GameLibrary(AppSettings settings, Log log)
             }
             catch (UnsafePathException ex) { game.Warnings.Add(ex.Message); }
         }
-        if (ExecutableDetector.ModFolderFor(game.Root, game.Exe) is not { } auto) return;
+        if (ExecutableDetector.ModFolderFor(game.Root, game.Exe) is not { } auto)
+        {
+            // Earlier versions redirected such games to <Project>\Binaries\Win64 even when the exe
+            // outside was the game itself. Keep managing what was installed there, so it can be removed.
+            if (ExecutableDetector.UnrealBinaries(game.Root) is { } old && !Path.GetDirectoryName(Path.GetFullPath(game.Exe))!.Equals(old, StringComparison.OrdinalIgnoreCase)
+                && HasManagedState?.Invoke(old) == true && HasManagedState?.Invoke(game.ExeFolder) != true)
+            {
+                game.ModFolder = old; game.ModFolderAuto = true;
+                game.Warnings.Add($"HDLSS5 gestisce componenti in {PathGuard.RelativeTo(game.Root, old)}, ma il gioco carica le DLL dalla cartella dell'eseguibile: rimuovili, poi in «Eseguibile» scegli come cartella delle mod quella dell'eseguibile e reinstallali.");
+            }
+            return;
+        }
         if (HasManagedState?.Invoke(game.ExeFolder) == true)
         {
             game.Warnings.Add($"Il gioco carica le DLL da {PathGuard.RelativeTo(game.Root, auto)}, ma HDLSS5 gestisce già componenti nella cartella dell'eseguibile: rimuovili e scegli la cartella delle mod in «Eseguibile».");
@@ -168,11 +179,15 @@ public sealed partial class GameLibrary(AppSettings settings, Log log)
 
     private static void DetectEngine(Game game)
     {
-        game.Engine = ExecutableDetector.DetectEngine(game.Exe,
-            game.Folder.EndsWith(@"\Binaries\Win64", StringComparison.OrdinalIgnoreCase) || game.Exe.Contains(@"\Binaries\Win64\", StringComparison.OrdinalIgnoreCase));
+        var binariesLayout = game.Folder.EndsWith(@"\Binaries\Win64", StringComparison.OrdinalIgnoreCase) || game.Exe.Contains(@"\Binaries\Win64\", StringComparison.OrdinalIgnoreCase);
+        // Game exe outside Binaries (Phantom Blade Zero: platform\steam\PBZ.exe) in an install
+        // with an Engine folder and one <Project>\Content\Paks: still an Unreal layout.
+        var project = binariesLayout || !Directory.Exists(Path.Combine(game.Root, "Engine")) ? null : ExecutableDetector.UnrealProject(game.Root);
+        game.Engine = ExecutableDetector.DetectEngine(game.Exe, binariesLayout || project != null);
+        if (game.Engine == EngineKind.Unknown) return;
         var bin = Directory.GetParent(game.Folder);
-        if (game.Engine != EngineKind.Unknown && bin?.Name.Equals("Binaries", StringComparison.OrdinalIgnoreCase) == true)
-            game.Project = bin.Parent?.Name;
+        if (bin?.Name.Equals("Binaries", StringComparison.OrdinalIgnoreCase) == true) game.Project = bin.Parent?.Name;
+        else if (project != null) game.Project = Path.GetFileName(project);
     }
 
     /// <summary>

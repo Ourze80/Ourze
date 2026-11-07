@@ -55,6 +55,25 @@ public class CompatibilityTests : IDisposable
     }
 
     [Fact]
+    public void Ue4ss_taken_over_by_another_manager_is_left_alone()
+    {
+        // Phantom Blade Zero: UE Mod Manager ships a game-specific nested build (ue4ss\UE4SS.dll).
+        Install(Ue4ssComponent.ComponentId, b =>
+        {
+            b.AddFile("dwmapi.dll", _f.PayloadFile("proxy", "uemm-proxy"));
+            b.AddFile("ue4ss/UE4SS.dll", _f.PayloadFile("rt", "build-1188"));
+        });
+        var ue4ss = new Ue4ssComponent();
+        Assert.Null(ue4ss.ChangedByOthers(Context()));
+        _f.GameFile("ue4ss/UE4SS.dll", "build-1195");                 // updated by the other manager
+        Assert.Equal("ue4ss/UE4SS.dll", ue4ss.ChangedByOthers(Context()));
+
+        // The official flat package would add a second copy next to the nested one.
+        Assert.Throws<BlockedException>(() => Ue4ssComponent.CheckLayout(Context(), ["dwmapi.dll", "UE4SS.dll", "Mods/mods.txt"]));
+        Ue4ssComponent.CheckLayout(Context(), ["dwmapi.dll", "ue4ss/UE4SS.dll"]);
+    }
+
+    [Fact]
     public void ReShade_moves_under_OptiScaler_and_back_without_leftovers()
     {
         Install(ReShadeComponent.ComponentId, b => b.AddFile("dxgi.dll", _f.PayloadFile("rs", "reshade-bytes")));

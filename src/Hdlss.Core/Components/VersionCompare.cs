@@ -13,6 +13,7 @@ public static partial class VersionCompare
 {
     [GeneratedRegex(@"\d+(?:\.\d+)+")] private static partial Regex Numbers();
     [GeneratedRegex(@"^[0-9a-f]{7,40}$", RegexOptions.IgnoreCase)] private static partial Regex Hash();
+    [GeneratedRegex(@"^(.+?)-\d+-g[0-9a-f]{7,40}$", RegexOptions.IgnoreCase)] private static partial Regex Describe();
 
     public static VersionVerdict Compare(string? installed, string latest)
     {
@@ -20,6 +21,13 @@ public static partial class VersionCompare
         var want = Clean(latest);
         if (have.Length == 0) return VersionVerdict.Unknown;
         if (string.Equals(have, want, StringComparison.OrdinalIgnoreCase)) return VersionVerdict.UpToDate;
+        // "v3.0.1-1188-gf885e8d2" (git describe): a development build N commits after that tag.
+        // It is ahead of the same tag, never "updated" back to it.
+        if (Describe().Match(have) is { Success: true } dev)
+        {
+            var tag = dev.Groups[1].Value;
+            return string.Equals(tag, want, StringComparison.OrdinalIgnoreCase) ? VersionVerdict.UpToDate : Compare(tag, want);
+        }
         if (Hash().IsMatch(have) && Hash().IsMatch(want))
             return have.StartsWith(want, StringComparison.OrdinalIgnoreCase) || want.StartsWith(have, StringComparison.OrdinalIgnoreCase)
                 ? VersionVerdict.UpToDate : VersionVerdict.Newer;
