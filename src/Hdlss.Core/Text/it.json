@@ -394,5 +394,9 @@
   "dlss.note.same": "{0}: già alla versione {1}.",
   "dlss.err.zip": "{0}: archivio diverso dal catalogo.",
   "dlss.err.file": "{0}: file diverso dal catalogo.",
-  "dlss.note.source": "Fonte: catalogo DLSS Swapper (firme NVIDIA verificate). Nei giochi online con anti-cheat è meglio non sostituire le DLL."
+  "dlss.note.source": "Fonte: catalogo DLSS Swapper (firme NVIDIA verificate). Nei giochi online con anti-cheat è meglio non sostituire le DLL.",
+  "cover.err.missing": "Il file immagine non esiste più.",
+  "cover.err.size": "Immagine troppo grande (massimo {0} MB).",
+  "cover.err.format": "Formato non valido: scegli un'immagine PNG o JPG.",
+  "cover.err.io": "Impossibile salvare la copertina: {0}"
 }

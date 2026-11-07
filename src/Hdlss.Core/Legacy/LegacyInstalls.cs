@@ -88,7 +88,7 @@ public static class LegacyInstalls
     public static string? FindDataFolder(string? legacyAppDir, string appDir)
     {
         var candidates = new List<string>();
-        if (!string.IsNullOrEmpty(legacyAppDir)) candidates.Add(Path.Combine(legacyAppDir, "data"));
+        if (!string.IsNullOrEmpty(legacyAppDir)) { candidates.Add(Path.Combine(legacyAppDir, "data")); candidates.Add(legacyAppDir); }   // the 1.x folder, or its data folder itself
         candidates.Add(Path.Combine(appDir, "data"));
         var parent = Directory.GetParent(appDir)?.FullName;
         if (parent != null) candidates.Add(Path.Combine(parent, "data"));

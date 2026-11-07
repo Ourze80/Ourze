@@ -394,5 +394,9 @@
   "dlss.note.same": "{0}: already at version {1}.",
   "dlss.err.zip": "{0}: archive differs from the catalog.",
   "dlss.err.file": "{0}: file differs from the catalog.",
-  "dlss.note.source": "Source: DLSS Swapper catalog (NVIDIA signatures verified). In online games with anti-cheat it's best not to replace the DLLs."
+  "dlss.note.source": "Source: DLSS Swapper catalog (NVIDIA signatures verified). In online games with anti-cheat it's best not to replace the DLLs.",
+  "cover.err.missing": "The image file no longer exists.",
+  "cover.err.size": "Image too large (maximum {0} MB).",
+  "cover.err.format": "Invalid format: choose a PNG or JPG image.",
+  "cover.err.io": "Could not save the cover: {0}"
 }

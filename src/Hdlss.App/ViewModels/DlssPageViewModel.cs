@@ -240,6 +240,7 @@ public sealed partial class DlssGameViewModel : ObservableObject
     public GameContext Context { get; }
     public string Name => _item.Name;
     public ImageSource? Cover => _item.Cover;
+    public ImageSource? ExeIcon => _item.ExeIcon;
     public bool HasDlss { get; }
     public bool HasStreamline { get; }
     public bool Managed { get; }

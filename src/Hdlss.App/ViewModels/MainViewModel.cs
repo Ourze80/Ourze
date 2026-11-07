@@ -135,11 +135,12 @@ public sealed partial class MainViewModel : ObservableObject
         Status = Loc.T("lib.scanning");
         try
         {
+            _coverCts?.Cancel();
             var games = await Task.Run(() => Host.Library.Scan());
             Games.Clear();
-            foreach (var g in games) Games.Add(new GameItemViewModel(g));
+            foreach (var g in games) Games.Add(new GameItemViewModel(g, Host.Services.Covers));
             Status = Loc.F(games.Count == 1 ? "lib.found.one" : "lib.found.many", games.Count);
-            _ = ComputeSummariesAsync();
+            _ = BackgroundLibraryWorkAsync();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or HdlssException)
         {
@@ -147,6 +148,38 @@ public sealed partial class MainViewModel : ObservableObject
             Status = Loc.F("lib.scanFailed", ex.Message);
         }
         finally { Scanning = false; }
+    }
+
+    private CancellationTokenSource? _coverCts;
+
+    private async Task BackgroundLibraryWorkAsync()
+    {
+        await ComputeSummariesAsync();
+        await ResolveCoversAsync();
+    }
+
+    /// <summary>Downloads missing covers one game at a time; refreshes only the tile that got one.</summary>
+    private async Task ResolveCoversAsync()
+    {
+        _coverCts?.Cancel();
+        var cts = _coverCts = new CancellationTokenSource();
+        try
+        {
+            foreach (var item in Games.ToList())
+            {
+                if (cts.IsCancellationRequested) return;
+                if (item.CoverPath != null && Host.Services.Covers.CurrentHero(item.Game) != null) continue;   // auto covers from before may still lack the wide hero
+                var path = await Host.Services.Covers.ResolveAsync(item.Game, cts.Token);
+                if (path == null || cts.IsCancellationRequested) continue;
+                item.RefreshCover();
+                if (Detail?.Item == item) Detail.RefreshHero();
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or HdlssException or HttpRequestException)
+        {
+            Host.Log.Warn("Copertine automatiche", ex);
+        }
     }
 
     /// <summary>Resolves executables and card status in the background, one game at a time.</summary>
