@@ -52,6 +52,8 @@ public sealed class Services(AppPaths paths, AppSettings settings, ContentStore 
     public TransactionEngine Engine { get; } = engine;
     public HttpService Http { get; } = http;
     public Log Log { get; } = log;
+    /// <summary>Game covers (custom, store and automatic).</summary>
+    public CoverService Covers { get; } = new(paths, http, log);
 }
 
 /// <summary>A snapshot of one game folder used for detection and planning.</summary>

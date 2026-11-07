@@ -68,25 +68,19 @@ public sealed partial class RenoDxHdrComponent : ComponentBase, ILocalImport
         var mod = Resolve(markdown, ctx.Game.Name);
         var uri = ValidateSource(mod.Url);
         var name = Path.GetFileName(uri.AbsolutePath);
-        string url = mod.Url; string? sha = null;
+        string url = mod.Url; string? sha = null; DateTime? published = null;
         if (uri.Host == "github.com")
         {
-            var parts = uri.AbsolutePath.Split('/');
-            var repo = parts[1] + "/" + parts[2];
-            using var json = await ctx.Services.Http.GetJsonAsync(GitHub.ReleasesUrl(repo, 20), cancel, TimeSpan.FromMinutes(30));
-            var asset = GitHubRelease.ParseList(json.RootElement).Where(r => !r.Draft)
-                .SelectMany(r => r.Assets.Select(a => (r, a)))
-                .Where(x => string.Equals(x.a.Name, name, StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(x => x.r.Published).Select(x => x.a).FirstOrDefault()
+            var (asset, when) = await FindGitHubAssetAsync(ctx, uri, name, cancel)
                 ?? throw new HdlssException(Tx.Get("hdr.err.noRelease"));
-            if (!asset.Url.StartsWith($"https://github.com/{repo}/releases/download/", StringComparison.Ordinal)) throw new HdlssException(Tx.Get("hdr.err.badSource"));
-            url = asset.Url; sha = asset.Sha256;
+            url = asset.Url; sha = asset.Sha256; published = when;
         }
         var file = await ctx.Services.Http.DownloadAsync(url, name, sha, 64_000_000, progress, cancel);
         if (!PeFile.IsPe64(file)) throw new HdlssException(Tx.Get("hdr.err.notX64"));
 
         var plan = ctx.NewPlan(this, $"{mod.Title} · {name}");
         plan.Meta("source", url);
+        if (published is { } when0 && when0.Year > 2000) plan.Meta(PublishedMeta, when0.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture));
         if (!Official(new Uri(url))) plan.Note(Tx.Get("hdr.note.unofficial", new Uri(url).Host, new Uri(url).AbsolutePath));
         plan.AddFile(ReShadeAddons.AddonTarget(ctx, name), file);
         if (mod.Notes.Length > 0) plan.Note(Tx.Get("hdr.note.catalog", mod.Notes));
@@ -94,6 +88,106 @@ public sealed partial class RenoDxHdrComponent : ComponentBase, ILocalImport
         plan.Note(Tx.Get("hdr.note.run"));
         return plan.Build();
     }
+
+    public const string PublishedMeta = "published";
+
+    /// <summary>Newest non-draft release asset of the repository with this file name (null when none or not from the repo).</summary>
+    private static async Task<(ReleaseAsset Asset, DateTime Published)?> FindGitHubAssetAsync(GameContext ctx, Uri uri, string name, CancellationToken cancel)
+    {
+        var parts = uri.AbsolutePath.Split('/');
+        var repo = parts[1] + "/" + parts[2];
+        using var json = await ctx.Services.Http.GetJsonAsync(GitHub.ReleasesUrl(repo, 20), cancel, TimeSpan.FromMinutes(30));
+        var found = GitHubRelease.ParseList(json.RootElement).Where(r => !r.Draft)
+            .SelectMany(r => r.Assets.Select(a => (r, a)))
+            .Where(x => string.Equals(x.a.Name, name, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(x => x.r.Published).Select(x => ((ReleaseAsset, DateTime)?)(x.a, x.r.Published)).FirstOrDefault();
+        if (found == null) return null;
+        if (!found.Value.Item1.Url.StartsWith($"https://github.com/{repo}/releases/download/", StringComparison.Ordinal)) throw new HdlssException(Tx.Get("hdr.err.badSource"));
+        return found;
+    }
+
+    /// <summary>The installed add-on (managed record first, then one by another tool): relative path, name, and its hash on disk.</summary>
+    private (string Name, string? Sha, string? Published)? InstalledAddon(GameContext ctx)
+    {
+        var record = ctx.State.Get(Id);
+        string? rel = record?.Files.Select(f => f.Path).FirstOrDefault(p => AddonName().IsMatch(Path.GetFileName(p)))
+            ?? (record == null ? ReShadeAddons.ForeignAddons(ctx, HdrPattern).FirstOrDefault() : null);
+        if (rel == null) return null;
+        string? sha = null;
+        try { sha = FileHash.OfFileOrNull(PathGuard.Resolve(ctx.Folder, rel)); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or HdlssException) { }
+        sha ??= record?.FindFile(rel)?.After;
+        string? published = null;
+        record?.Meta.TryGetValue(PublishedMeta, out published);
+        return (Path.GetFileName(rel), sha, published);
+    }
+
+    /// <summary>What the catalog would install now for this game (GitHub only): asset, its date, and the name it carries.</summary>
+    private async Task<(ReleaseAsset Asset, DateTime Published)?> CatalogAssetAsync(GameContext ctx, string? onlyName, CancellationToken cancel)
+    {
+        try
+        {
+            var markdown = await ctx.Services.Http.GetTextAsync(CatalogUrl, cancel, TimeSpan.FromHours(6));
+            var uri = ValidateSource(Resolve(markdown, ctx.Game.Name).Url);
+            if (uri.Host != "github.com") return null;
+            var name = Path.GetFileName(uri.AbsolutePath);
+            if (onlyName != null && !string.Equals(onlyName, name, StringComparison.OrdinalIgnoreCase)) return null;
+            return await FindGitHubAssetAsync(ctx, uri, name, cancel);
+        }
+        catch (Exception ex) when (ex is HdlssException or HttpRequestException or IOException or JsonException || (ex is TaskCanceledException && !cancel.IsCancellationRequested))
+        {
+            return null;
+        }
+    }
+
+    public override async Task<string?> LatestVersionAsync(GameContext ctx, IReadOnlyDictionary<string, string> options, CancellationToken cancel)
+    {
+        var installed = InstalledAddon(ctx);
+        var latest = await CatalogAssetAsync(ctx, installed?.Name, cancel);
+        return latest == null ? null : DateLabel(latest.Value.Published) ?? ShortHash(latest.Value.Asset.Sha256);
+    }
+
+    public override async Task<UpdateCheck?> CheckUpdateAsync(GameContext ctx, IReadOnlyDictionary<string, string> options, CancellationToken cancel)
+    {
+        var installed = InstalledAddon(ctx);
+        if (installed == null) return null;
+        var latest = await CatalogAssetAsync(ctx, installed.Value.Name, cancel);
+        if (latest == null) return null;
+        return CompareAsset(installed.Value.Name, installed.Value.Sha, installed.Value.Published,
+            latest.Value.Asset.Name, latest.Value.Asset.Sha256, latest.Value.Published);
+    }
+
+    /// <summary>
+    /// Pure comparison of the installed add-on with the current catalog asset. The file content is the truth
+    /// (same SHA-256 = up to date); without an asset hash the recorded publish date is compared; with neither, null.
+    /// A different file name means the catalog does not describe this file: null.
+    /// </summary>
+    public static UpdateCheck? CompareAsset(string? installedName, string? installedSha, string? installedPublished,
+        string assetName, string? assetSha, DateTime assetPublished)
+    {
+        if (installedName == null || !string.Equals(installedName, assetName, StringComparison.OrdinalIgnoreCase)) return null;
+        DateTime? had = DateTime.TryParse(installedPublished, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var d) ? d.ToUniversalTime() : null;
+        var assetDate = assetPublished.Year > 2000 ? assetPublished.ToUniversalTime() : (DateTime?)null;
+        string? latestDate = DateLabel(assetDate), hadDate = DateLabel(had);
+        if (assetSha != null)
+        {
+            if (installedSha == null) return null;
+            if (FileHash.Equal(installedSha, assetSha))
+            {
+                var label = hadDate ?? latestDate ?? ShortHash(assetSha)!;
+                return new(label, latestDate ?? label, VersionVerdict.UpToDate);
+            }
+            // Different content: dates when they tell the two apart, otherwise short hashes.
+            if (hadDate != null && latestDate != null && hadDate != latestDate) return new(hadDate, latestDate, VersionVerdict.Newer);
+            return new(ShortHash(installedSha)!, ShortHash(assetSha)!, VersionVerdict.Newer);
+        }
+        if (had == null || assetDate == null || hadDate == null || latestDate == null) return null;
+        return assetDate > had && hadDate != latestDate
+            ? new(hadDate, latestDate, VersionVerdict.Newer)
+            : new(hadDate, hadDate, VersionVerdict.UpToDate);
+    }
+
+    private static string? DateLabel(DateTime? utc) => utc is { } v && v.Year > 2000 ? v.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : null;
+    private static string? ShortHash(string? sha) => sha is { Length: >= 8 } ? sha[..8].ToLowerInvariant() : null;
 
     public Task<ChangePlan> PlanImportAsync(GameContext ctx, string file, IProgress<OperationProgress>? progress, CancellationToken cancel)
     {

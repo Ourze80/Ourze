@@ -266,7 +266,9 @@
                                     <StackPanel>
                                         <Grid Height="240" Background="#232835">
                                             <TextBlock Text="{Binding Initial}" FontSize="48" FontWeight="Bold" Foreground="#3A4152"
-                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding ShowInitial, Converter={StaticResource Vis}}" />
+                                            <Image Source="{Binding ExeIcon}" Width="72" Height="72" Stretch="Uniform" Opacity="0.9"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
                                             <Image Source="{Binding Cover}" Stretch="UniformToFill" />
                                             <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8" CornerRadius="4" Background="#CC0F1115" Padding="6,2">
                                                 <TextBlock Text="{Binding StoreLabel}" FontSize="10" Foreground="{StaticResource Muted}" />
@@ -295,7 +297,21 @@
                       Visibility="{Binding DataContext.IsGame, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource Vis}}">
             <StackPanel>
                 <Grid Height="320" ClipToBounds="True">
-                    <Image Source="{Binding Hero}" Stretch="UniformToFill" VerticalAlignment="Top" Opacity="0.55" />
+                    <Image Source="{Binding Hero}" Stretch="UniformToFill" VerticalAlignment="Top" Opacity="0.55">
+                        <Image.Style>
+                            <Style TargetType="Image">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HeroPortrait}" Value="True">
+                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                        <Setter Property="Opacity" Value="0.3" />
+                                        <Setter Property="Effect"><Setter.Value><BlurEffect Radius="40" /></Setter.Value></Setter>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Image.Style>
+                    </Image>
+                    <Image Source="{Binding Hero}" Stretch="Uniform" HorizontalAlignment="Right" Margin="0,78,60,24" Opacity="0.95"
+                           Visibility="{Binding HeroPortrait, Converter={StaticResource Vis}}" />
                     <Rectangle>
                         <Rectangle.Fill>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
@@ -311,6 +327,13 @@
                             <TextBlock Text="{Binding [rail.games], Source={x:Static app:Loc.Instance}}" />
                         </StackPanel>
                     </Button>
+                    <StackPanel HorizontalAlignment="Right" VerticalAlignment="Top" Orientation="Horizontal" Margin="0,22,28,0">
+                        <Button Content="{Binding [cover.auto], Source={x:Static app:Loc.Instance}}" Command="{Binding ClearCoverCommand}"
+                                Background="#AA0F1115" Margin="0,0,8,0" ToolTip="{Binding [cover.auto.tip], Source={x:Static app:Loc.Instance}}"
+                                Visibility="{Binding HasCustomCover, Converter={StaticResource Vis}}" />
+                        <Button Content="{Binding [cover.change], Source={x:Static app:Loc.Instance}}" Command="{Binding ChangeCoverCommand}"
+                                Background="#AA0F1115" ToolTip="{Binding [cover.change.tip], Source={x:Static app:Loc.Instance}}" />
+                    </StackPanel>
                     <StackPanel VerticalAlignment="Bottom" Margin="40,0,40,8">
                         <TextBlock Text="{Binding Name}" FontSize="34" FontWeight="Bold" TextWrapping="Wrap" />
                         <ItemsControl ItemsSource="{Binding Chips}" Margin="0,10,0,0">
@@ -619,7 +642,10 @@
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
                                         <Border Width="76" Height="108" CornerRadius="6" ClipToBounds="True" Background="#232835" Margin="0,0,20,0" VerticalAlignment="Top">
-                                            <Image Source="{Binding Cover}" Stretch="UniformToFill" />
+                                            <Grid>
+                                                <Image Source="{Binding ExeIcon}" Width="48" Height="48" Stretch="Uniform" Opacity="0.9" RenderOptions.BitmapScalingMode="HighQuality" />
+                                                <Image Source="{Binding Cover}" Stretch="UniformToFill" />
+                                            </Grid>
                                         </Border>
                                         <StackPanel Grid.Column="1">
                                             <!-- Same header as the component cards: name left, state right -->

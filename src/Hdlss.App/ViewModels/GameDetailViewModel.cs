@@ -60,7 +60,58 @@ public sealed partial class GameDetailViewModel : ObservableObject
     {
         Main = main;
         Item = item;
-        Hero = Images.Load(Game.Hero ?? Game.Cover, 1600);
+        Hero = LoadHero();
+    }
+
+    private ImageSource? LoadHero()
+    {
+        var covers = Main.Host.Services.Covers;
+        var image = Images.Load(covers.CurrentHero(Game) ?? covers.Current(Game), 1600);
+        HeroPortrait = image != null && image.Height > image.Width;
+        return image;
+    }
+
+    [ObservableProperty] private bool _heroPortrait;
+
+    public bool HasCustomCover => Main.Host.Services.Covers.HasCustom(Game);
+
+    public void RefreshHero()
+    {
+        Hero = LoadHero();
+        OnPropertyChanged(nameof(HasCustomCover));
+    }
+
+    [RelayCommand]
+    private void ChangeCover()
+    {
+        var file = Dialogs.PickFile(Loc.T("cover.filter"));
+        if (file == null) return;
+        try
+        {
+            Main.Host.Services.Covers.SetCustom(Game, file);
+            Item.RefreshCover();
+            RefreshHero();
+        }
+        catch (Exception ex) when (ex is HdlssException or IOException or UnauthorizedAccessException)
+        {
+            Main.Host.Log.Warn("Copertina personalizzata", ex);
+            Dialogs.Error(ex.Message);
+        }
+    }
+
+    [RelayCommand]
+    private void ClearCover()
+    {
+        try
+        {
+            Main.Host.Services.Covers.ClearCustom(Game);
+            Item.RefreshCover();
+            RefreshHero();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Dialogs.Error(ex.Message);
+        }
     }
 
     private bool _tabInitialized;

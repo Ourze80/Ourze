@@ -14,6 +14,7 @@ public sealed class AppPaths
     public string Cache => Path.Combine(Data, "cache");
     public string HttpCache => Path.Combine(Cache, "http");
     public string Downloads => Path.Combine(Cache, "downloads");
+    public string Covers => Path.Combine(Data, "covers");
     public string Logs => Path.Combine(Data, "logs");
     public string Temp => Path.Combine(Data, "tmp");
     public string SettingsFile => Path.Combine(Data, "settings.json");
