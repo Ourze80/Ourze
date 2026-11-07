@@ -52,34 +52,51 @@ public static partial class ExecutableDetector
         var named = shipping.Where(f => Path.GetFileNameWithoutExtension(f).EndsWith("-Shipping", StringComparison.OrdinalIgnoreCase)).ToList();
         if (named.Count == 1) return (named[0], true);
         if (all.Count == 1) return (all[0], true);
-        var best = all.OrderByDescending(f => { try { return new FileInfo(f).Length; } catch (IOException) { return 0L; } }).FirstOrDefault();
-        return (best ?? "", false);
+        var bySize = all.Select(f => (File: f, Size: Size(f))).OrderByDescending(x => x.Size).ToList();
+        if (bySize.Count == 0) return ("", false);
+        // One binary dwarfs the rest (a 500 MB game next to a 1 MB launcher stub): not a guess.
+        var dominant = bySize[0].Size >= 20L * 1024 * 1024 && bySize[0].Size >= 10 * bySize[1].Size;
+        return (bySize[0].File, dominant);
     }
 
     private static bool InUnrealBinaries(string path) =>
         Regex.IsMatch(path.Replace('/', '\\').TrimEnd('\\') + "\\", @"\\Binaries\\(Win64|WinGDK)\\$", RegexOptions.IgnoreCase);
 
     /// <summary>
-    /// Unreal games launched from outside "Binaries" (e.g. platform\steam\Game.exe) still load
-    /// proxy DLLs from &lt;Project&gt;\Binaries\Win64. Returns that folder when the exe lives elsewhere
-    /// and exactly one project (with Content\Paks) has it; otherwise null (use the exe folder).
+    /// The single Unreal project folder of an install (a top-level folder with Content\Paks,
+    /// not "Engine"), or null when there is none or more than one.
+    /// </summary>
+    public static string? UnrealProject(string root)
+    {
+        var found = SafeDirs(root)
+            .Where(d => !Path.GetFileName(d).Equals("Engine", StringComparison.OrdinalIgnoreCase)
+                        && Directory.Exists(Path.Combine(d, "Content", "Paks")))
+            .Take(2).ToList();
+        return found.Count == 1 ? found[0] : null;
+    }
+
+    /// <summary>&lt;Project&gt;\Binaries\Win64 (or WinGDK) of the single Unreal project, if it exists.</summary>
+    public static string? UnrealBinaries(string root) =>
+        UnrealProject(root) is { } project
+            ? new[] { "Win64", "WinGDK" }.Select(p => Path.Combine(project, "Binaries", p)).FirstOrDefault(Directory.Exists)
+            : null;
+
+    /// <summary>
+    /// Unreal games started from a launcher stub outside "Binaries" (e.g. platform\steam\Game.exe)
+    /// load proxy DLLs from &lt;Project&gt;\Binaries\Win64, where the real game exe is. Returns that
+    /// folder only when it holds a game exe larger than <paramref name="exe"/>. When the exe outside
+    /// is itself the game (Phantom Blade Zero: a 500 MB binary, Binaries only has tools) it is null:
+    /// the DLLs go next to the exe.
     /// </summary>
     public static string? ModFolderFor(string root, string exe)
     {
         if (string.IsNullOrEmpty(exe) || InUnrealBinaries(Path.GetDirectoryName(exe)!)) return null;
-        var found = new List<string>();
-        foreach (var project in SafeDirs(root))
-        {
-            if (Path.GetFileName(project).Equals("Engine", StringComparison.OrdinalIgnoreCase)) continue;
-            if (!Directory.Exists(Path.Combine(project, "Content", "Paks"))) continue;
-            foreach (var platform in new[] { "Win64", "WinGDK" })
-            {
-                var bin = Path.Combine(project, "Binaries", platform);
-                if (Directory.Exists(bin)) { found.Add(bin); break; }
-            }
-        }
-        return found.Count == 1 ? found[0] : null;
+        if (UnrealBinaries(root) is not { } bin) return null;
+        var size = Size(exe);
+        return SafeFiles(bin, "*.exe").Any(f => !IsServiceExecutable(f) && Size(f) > size) ? bin : null;
     }
+
+    private static long Size(string file) { try { return new FileInfo(file).Length; } catch (IOException) { return 0; } }
 
     /// <summary>One line for the executable picker: size and what the file says it is.</summary>
     public static string Describe(string exe)

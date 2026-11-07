@@ -32,9 +32,18 @@ public sealed class MfgUnlockComponent : ComponentBase
         else if (ctx.Gpu.Series != 40) blockers.Add("Richiede una GPU RTX 4000.");
         var others = ReShadeAddons.ForeignAddons(ctx, "mfg|framegen").Where(a => !Path.GetFileName(a).Equals(AddonName, StringComparison.OrdinalIgnoreCase)).ToList();
         if (others.Count > 0) blockers.Add($"Altro add-on MFG presente: {string.Join(", ", others)}.");
-        if (!File.Exists(PathGuard.Resolve(ctx.Folder, "nvngx_dlssg.dll")) && !File.Exists(PathGuard.Resolve(ctx.Folder, "sl.dlss_g.dll")))
-            blockers.Add("Nessuna DLSS Frame Generation trovata nella cartella del gioco (nvngx_dlssg.dll / sl.dlss_g.dll).");
+        if (!HasFrameGeneration(ctx))
+            blockers.Add("Nessuna DLSS Frame Generation trovata nel gioco (nvngx_dlssg.dll / sl.dlss_g.dll).");
     }
+
+    /// <summary>
+    /// DLSS Frame Generation anywhere in the install: Unreal games keep it in the Streamline plugin
+    /// (Engine/Plugins/Runtime/Nvidia/StreamlineCore/Binaries/ThirdParty/Win64), not next to the exe.
+    /// </summary>
+    internal static bool HasFrameGeneration(GameContext ctx) =>
+        File.Exists(PathGuard.Resolve(ctx.Folder, "sl.dlss_g.dll"))
+        || DlssFiles.Find(ctx.Game.Root).Any(f => Path.GetFileName(f).Equals("nvngx_dlssg.dll", StringComparison.OrdinalIgnoreCase)
+            || File.Exists(Path.Combine(Path.GetDirectoryName(f)!, "sl.dlss_g.dll")));
 
     public override async Task<ChangePlan> PlanInstallAsync(GameContext ctx, IReadOnlyDictionary<string, string> options,
         IProgress<OperationProgress>? progress, CancellationToken cancel)
@@ -233,6 +242,24 @@ public sealed partial class Ue4ssComponent : ComponentBase
             if (flat || nested) blockers.Add("UE4SS installato da altro software: aggiornalo con il suo metodo.");
             else if (File.Exists(PathGuard.Resolve(ctx.Folder, "dwmapi.dll"))) blockers.Add("dwmapi.dll già presente (altro loader): nessuna sovrascrittura.");
         }
+        else if (ChangedByOthers(ctx) is { } rel)
+            blockers.Add($"UE4SS ({rel}) è stato cambiato da un altro programma, per esempio UE Mod Manager con la sua build per questo gioco: aggiornalo con quello. HDLSS5 non lo sovrascrive.");
+    }
+
+    /// <summary>
+    /// A recorded runtime or proxy whose content is no longer what HDLSS5 wrote: another manager
+    /// (UE Mod Manager ships game-specific UE4SS builds) has taken over the install.
+    /// </summary>
+    internal string? ChangedByOthers(GameContext ctx)
+    {
+        if (ctx.State.Get(Id) is not { } record) return null;
+        foreach (var rel in new[] { "dwmapi.dll", "UE4SS.dll", "ue4ss/UE4SS.dll" })
+        {
+            var full = PathGuard.Resolve(ctx.Folder, rel);
+            if (record.FindFile(rel) is { } f && File.Exists(full)
+                && !string.Equals(FileHash.OfFile(full), f.After, StringComparison.OrdinalIgnoreCase)) return rel;
+        }
+        return null;
     }
 
     public override async Task<ChangePlan> PlanInstallAsync(GameContext ctx, IReadOnlyDictionary<string, string> options,
@@ -249,6 +276,7 @@ public sealed partial class Ue4ssComponent : ComponentBase
                 throw new HdlssException("Pacchetto UE4SS senza runtime o loader.");
             foreach (var dll in files.Where(f => f.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)))
                 if (!PeFile.IsPe64(PathGuard.Resolve(temp, dll))) throw new HdlssException($"UE4SS: {dll} non è x64.");
+            CheckLayout(ctx, files);
 
             var plan = ctx.NewPlan(this, release.Tag);
             plan.Meta("source", asset.Url);
@@ -276,5 +304,18 @@ public sealed partial class Ue4ssComponent : ComponentBase
             return plan.Build();
         }
         finally { Releases.Cleanup(temp); }
+    }
+
+    /// <summary>
+    /// The package's runtime must go where the installed one is: a flat package over a nested
+    /// install (ue4ss\UE4SS.dll, e.g. a game-specific build) would replace the proxy and leave two
+    /// copies, and the game would start the wrong one.
+    /// </summary>
+    internal static void CheckLayout(GameContext ctx, IReadOnlyCollection<string> packageFiles)
+    {
+        var runtime = packageFiles.Contains("ue4ss/UE4SS.dll") ? "ue4ss/UE4SS.dll" : "UE4SS.dll";
+        var other = runtime == "UE4SS.dll" ? "ue4ss/UE4SS.dll" : "UE4SS.dll";
+        if (File.Exists(PathGuard.Resolve(ctx.Folder, other)))
+            throw new BlockedException($"UE4SS è installato in {other}, il pacchetto ufficiale lo mette in {runtime}: installarlo lascerebbe due copie e il gioco avvierebbe quella sbagliata. Se vuoi davvero passare alla versione ufficiale, rimuovi prima UE4SS.");
     }
 }

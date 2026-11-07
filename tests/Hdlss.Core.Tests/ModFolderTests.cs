@@ -12,15 +12,54 @@ public class ModFolderTests : IDisposable
 
     private string Dir(params string[] parts) { var d = Path.Combine([_root, .. parts]); Directory.CreateDirectory(d); return d; }
 
-    [Fact]
-    public void ExeOutsideBinaries_UsesProjectBinaries()
+    private static string File(string path, long size)
     {
-        // Phantom Blade Zero layout: platform\steam\PBZ.exe loads DLLs from ProjectPBZ\Binaries\Win64
-        var exe = Path.Combine(Dir("platform", "steam"), "PBZ.exe");
-        Dir("ProjectPBZ", "Content", "Paks");
-        var bin = Dir("ProjectPBZ", "Binaries", "Win64");
+        using var f = new FileStream(path, FileMode.Create);
+        f.SetLength(size);
+        return path;
+    }
+
+    [Fact]
+    public void LauncherStubOutsideBinaries_UsesProjectBinaries()
+    {
+        // platform\steam\Game.exe is a stub that starts Game\Binaries\Win64\Game-Win64-Shipping.exe
+        var exe = File(Path.Combine(Dir("platform", "steam"), "Game.exe"), 1_000);
+        Dir("Game", "Content", "Paks");
+        var bin = Dir("Game", "Binaries", "Win64");
+        File(Path.Combine(bin, "Game-Win64-Shipping.exe"), 50_000);
         Dir("Engine", "Binaries", "Win64");
         Assert.Equal(bin, ExecutableDetector.ModFolderFor(_root, exe));
+    }
+
+    [Fact]
+    public void GameExeOutsideBinaries_KeepsExeFolder()
+    {
+        // Phantom Blade Zero: platform\steam\PBZ.exe is the game; ProjectPBZ\Binaries\Win64 only has tools
+        var exe = File(Path.Combine(Dir("platform", "steam"), "PBZ.exe"), 50_000);
+        File(Path.Combine(Dir("steam"), "PBZ.exe"), 1_000);
+        Dir("ProjectPBZ", "Content", "Paks");
+        var bin = Dir("ProjectPBZ", "Binaries", "Win64");
+        File(Path.Combine(bin, "8za_v2.exe"), 5_000);
+        File(Path.Combine(bin, "CheckEnv.exe"), 100);
+        Dir("Engine", "Binaries", "Win64");
+        Assert.Null(ExecutableDetector.ModFolderFor(_root, exe));
+        Assert.Equal(Path.Combine(_root, "ProjectPBZ"), ExecutableDetector.UnrealProject(_root));
+    }
+
+    [Fact]
+    public void Pick_is_certain_when_one_exe_dwarfs_the_others()
+    {
+        var game = File(Path.Combine(Dir("platform", "steam"), "PBZ.exe"), 30L * 1024 * 1024);
+        File(Path.Combine(Dir("steam"), "PBZ.exe"), 1024 * 1024);
+        Assert.Equal((game, true), ExecutableDetector.Pick(_root, _ => true));
+    }
+
+    [Fact]
+    public void Pick_by_size_is_a_guess_when_sizes_are_close()
+    {
+        var big = File(Path.Combine(Dir("a"), "Game.exe"), 30L * 1024 * 1024);
+        File(Path.Combine(Dir("b"), "GameDX11.exe"), 25L * 1024 * 1024);
+        Assert.Equal((big, false), ExecutableDetector.Pick(_root, _ => true));
     }
 
     [Fact]
