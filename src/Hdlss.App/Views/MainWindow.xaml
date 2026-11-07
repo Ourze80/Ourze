@@ -82,7 +82,14 @@
                         <DockPanel>
                             <TextBlock DockPanel.Dock="Right" Text="{Binding StatusText}" Foreground="{Binding StatusBrush}"
                                        FontSize="13" TextAlignment="Right" MaxWidth="380" Margin="12,2,0,0" />
-                            <TextBlock Text="{Binding Name}" Style="{StaticResource Heading}" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding Name}" Style="{StaticResource Heading}" />
+                                <Border BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="9" Padding="8,1" Margin="10,0,0,0" VerticalAlignment="Center"
+                                        ToolTip="HDLSS5 non modifica questo componente: aggiornalo o rimuovilo con il programma che lo ha installato."
+                                        Visibility="{Binding IsExternallyManaged, Converter={StaticResource Vis}}">
+                                    <TextBlock Text="Gestito da un altro programma" Foreground="{StaticResource Muted}" FontSize="11" />
+                                </Border>
+                            </StackPanel>
                         </DockPanel>
                         <TextBlock Text="{Binding Description}" Style="{StaticResource MutedText}" Margin="0,4,0,10" />
                         <ItemsControl ItemsSource="{Binding Options}" Visibility="{Binding HasOptions, Converter={StaticResource Vis}}">
@@ -105,7 +112,17 @@
                         </ItemsControl>
                         <Border Background="#2A1D1F" CornerRadius="6" Padding="10,6" Margin="0,0,0,10"
                                 Visibility="{Binding HasBlockers, Converter={StaticResource Vis}}">
-                            <TextBlock Text="{Binding BlockersText}" Foreground="#F0A6A0" FontSize="13" />
+                            <ItemsControl ItemsSource="{Binding Blockers}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,2">
+                                            <TextBlock Text="{Binding Title}" Foreground="#F0A6A0" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding Detail}" Foreground="#D49893" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"
+                                                       Visibility="{Binding HasDetail, Converter={StaticResource Vis}}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </Border>
                         <Border Background="{DynamicResource AccentTint}" CornerRadius="6" Padding="10,6" Margin="0,0,0,10"
                                 Visibility="{Binding IsUnavailable, Converter={StaticResource Vis}}">
@@ -127,11 +144,12 @@
                             <Button Style="{StaticResource DangerButton}" Command="{Binding RemoveCommand}"
                                     Content="{Binding [component.remove], Source={x:Static app:Loc.Instance}}"
                                     Visibility="{Binding IsManaged, Converter={StaticResource Vis}}" />
-                            <Button Style="{StaticResource Ghost}" Command="{Binding RemoveForceCommand}"
-                                    Content="{Binding [component.removeForce], Source={x:Static app:Loc.Instance}}"
-                                    ToolTip="Rimuove i file di HDLSS5 lasciando invariati quelli modificati da altro software."
-                                    Visibility="{Binding IsManaged, Converter={StaticResource Vis}}" />
                         </StackPanel>
+                        <TextBlock Text="{Binding VersionsText}" ToolTip="{Binding VersionsText}" Foreground="{StaticResource Muted}" FontSize="11"
+                                   TextTrimming="CharacterEllipsis" Margin="0,6,0,0"
+                                   Visibility="{Binding HasVersions, Converter={StaticResource Vis}}" />
+                        <TextBlock Text="⚠ Non è una versione più recente" Foreground="{StaticResource Warn}" FontSize="11" Margin="0,2,0,0"
+                                   Visibility="{Binding ShowDowngradeWarning, Converter={StaticResource Vis}}" />
                     </StackPanel>
                 </Grid>
             </Border>
@@ -309,6 +327,16 @@
                 <StackPanel Margin="40,8,40,40" MaxWidth="1100" HorizontalAlignment="Left">
                     <ProgressBar IsIndeterminate="True" Visibility="{Binding Loading, Converter={StaticResource Vis}}" Margin="0,0,0,12" />
 
+                    <!-- One-line summary -->
+                    <WrapPanel Margin="0,0,0,12">
+                        <TextBlock Text="{Binding SummaryComponents}" FontSize="13" Foreground="{StaticResource Muted}" />
+                        <TextBlock Text=" · " FontSize="13" Foreground="{StaticResource Muted}" Visibility="{Binding HasSummaryWarnings, Converter={StaticResource Vis}}" />
+                        <TextBlock Text="{Binding SummaryWarnings}" FontSize="13" Foreground="{StaticResource Warn}" Visibility="{Binding HasSummaryWarnings, Converter={StaticResource Vis}}" />
+                        <TextBlock Text=" · " FontSize="13" Foreground="{StaticResource Muted}" Visibility="{Binding HasSummaryNr, Converter={StaticResource Vis}}" />
+                        <TextBlock Text="{Binding SummaryNr}" FontSize="13" Foreground="{StaticResource Muted}" ToolTip="{Binding SummaryNrTip}"
+                                   Visibility="{Binding HasSummaryNr, Converter={StaticResource Vis}}" />
+                    </WrapPanel>
+
                     <!-- DLSS 5 card: the main job of the app. Method choice first, then status and the one next step. -->
                     <Border Style="{StaticResource CardBorder}" Padding="26,22">
                         <StackPanel>
@@ -395,7 +423,16 @@
                     <ItemsControl ItemsSource="{Binding Warnings}" Margin="0,0,0,8">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <TextBlock Foreground="{StaticResource Warn}" Margin="0,0,0,4"><Run Text="⚠ " /><Run Text="{Binding Mode=OneWay}" /></TextBlock>
+                                <DockPanel Margin="0,0,0,6">
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource Ghost}" Content="{Binding ActionLabel}" Command="{Binding Action}"
+                                            Margin="12,0,0,0" Padding="10,3" FontSize="12" VerticalAlignment="Center"
+                                            Visibility="{Binding HasAction, Converter={StaticResource Vis}}" />
+                                    <StackPanel>
+                                        <TextBlock Foreground="{StaticResource Warn}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"><Run Text="⚠ " /><Run Text="{Binding Title, Mode=OneWay}" /></TextBlock>
+                                        <TextBlock Text="{Binding Detail}" Foreground="{StaticResource Warn}" Opacity="0.85" FontSize="12" TextWrapping="Wrap" Margin="18,2,0,0"
+                                                   Visibility="{Binding HasDetail, Converter={StaticResource Vis}}" />
+                                    </StackPanel>
+                                </DockPanel>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

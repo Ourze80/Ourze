@@ -13,10 +13,10 @@ public static class ReShadeAddons
     public static void RequireAddonSupport(GameContext ctx, List<string> blockers)
     {
         var loaders = ctx.Scan.ReShadeLoaders;
-        if (loaders.Count == 0) blockers.Add("Installa prima ReShade (add-on).");
-        else if (loaders.Count > 1) blockers.Add("Più copie di ReShade: risolvi il doppione prima.");
+        if (loaders.Count == 0) blockers.Add("ReShade mancante: questa mod è un add-on di ReShade e senza non parte. Installa prima ReShade (add-on).");
+        else if (loaders.Count > 1) blockers.Add("Più copie di ReShade: il gioco ne carica una sola e le altre creano confusione. Rimuovi le copie in più e tieni una sola ReShade.");
         else if (!loaders[0].StartsWith(Vulkan.Dir) && !ctx.Scan.ReShadeSupportsAddons)
-            blockers.Add("La copia di ReShade non supporta gli add-on: reinstallala da HDLSS5.");
+            blockers.Add("ReShade senza supporto add-on: la copia installata non carica gli add-on. Reinstallala da HDLSS5.");
         if (ctx.Scan.AddonFolder == "?") blockers.Add(NrRules.AddonPathOutside(ctx));
     }
 

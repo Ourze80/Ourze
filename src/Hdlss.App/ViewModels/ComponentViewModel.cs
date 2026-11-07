@@ -83,7 +83,13 @@ public sealed partial class ComponentViewModel : ObservableObject
     [ObservableProperty] private string? _latestVersion;
     public string BlockersText { get; }
     public bool HasBlockers => BlockersText.Length > 0;
+    /// <summary>The blockers as "title / detail" notices, in the same order as <see cref="BlockersText"/>.</summary>
+    public IReadOnlyList<NoticeViewModel> Blockers { get; }
     public bool IsManaged { get; }
+    private bool IsTakenOver { get; }
+    /// <summary>Not installed by HDLSS5, or taken over since by another program: HDLSS5 leaves it alone.</summary>
+    public bool IsExternallyManaged => !IsLegacy && !Component.ChecksGameFiles && (Kind == ComponentStatusKind.External || IsTakenOver);
+    private bool IsLegacy { get; }
     public bool HasOptions => Options.Count > 0;
     public bool HasStep => Step > 0;
     public bool CanImportFile => Component is ILocalImport;
@@ -96,10 +102,19 @@ public sealed partial class ComponentViewModel : ObservableObject
     public bool ShowAction => !CanImportExternal && State is UpdateState.NotInstalled or UpdateState.UpdateAvailable or UpdateState.OptionsChanged;
     public string ActionLabel => State switch
     {
+        UpdateState.UpdateAvailable when IsDowngrade => "Reinstalla",
         UpdateState.UpdateAvailable => LatestVersion is { Length: <= 28 } v ? $"Aggiorna a {v}" : "Aggiorna",
         UpdateState.OptionsChanged => "Applica le modifiche",
         _ => "Installa",
     };
+    /// <summary>Installed version and the one on offer, shown under the button.</summary>
+    [ObservableProperty] private string _versionsText = "";
+    public bool HasVersions => State == UpdateState.UpdateAvailable && VersionsText.Length > 0;
+    /// <summary>The offered version is not newer by number: the button reinstalls rather than updates.</summary>
+    [ObservableProperty] private bool _isDowngrade;
+    public bool ShowDowngradeWarning => HasVersions && IsDowngrade;
+    partial void OnVersionsTextChanged(string value) { OnPropertyChanged(nameof(HasVersions)); OnPropertyChanged(nameof(ShowDowngradeWarning)); }
+    partial void OnIsDowngradeChanged(bool value) { OnPropertyChanged(nameof(ActionLabel)); OnPropertyChanged(nameof(ShowDowngradeWarning)); }
     /// <summary>Secondary "Reinstalla": when the latest version can't be checked, or for tinkerers.</summary>
     public bool ShowReinstall => IsManaged && (State == UpdateState.Unknown || State == UpdateState.UpToDate && _owner.Advanced);
     public bool IsChecking => State == UpdateState.Checking;
@@ -116,6 +131,7 @@ public sealed partial class ComponentViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(ShowAction)); OnPropertyChanged(nameof(ActionLabel));
         OnPropertyChanged(nameof(ShowReinstall)); OnPropertyChanged(nameof(IsChecking));
+        OnPropertyChanged(nameof(HasVersions)); OnPropertyChanged(nameof(ShowDowngradeWarning));
     }
 
     public ComponentViewModel(GameDetailViewModel owner, IComponent component, int step)
@@ -137,10 +153,13 @@ public sealed partial class ComponentViewModel : ObservableObject
             var status = component.Detect(ctx);
             Kind = status.Kind;
             StatusText = status.Detail;
-            StatusBrushKey = Kind switch { ComponentStatusKind.Installed => "Accent", ComponentStatusKind.External => "Warn", ComponentStatusKind.Blocked => "Danger", _ => "Muted" };
+            StatusBrushKey = Kind switch { ComponentStatusKind.Installed => "Accent", ComponentStatusKind.Blocked => "Danger", _ => "Muted" };
             BlockersText = string.Join("\n", component.Blockers(ctx));
+            // Hashes files, so computed once here (same place and thread as Blockers).
+            if (IsManaged && component is ComponentBase cb) IsTakenOver = cb.TakenOverBy(ctx) != null;
             if (!IsManaged && owner.LegacyComponents.Contains(component.Id))
             {
+                IsLegacy = true;
                 StatusText = "Installato da HDLSS5 1.x";
                 BlockersText = "Installazione della versione 1.x: usa «Adotta» nella sezione HDLSS5 1.x qui sopra per gestirla da qui (nessun file viene modificato).";
             }
@@ -158,6 +177,8 @@ public sealed partial class ComponentViewModel : ObservableObject
             StatusBrushKey = "Danger";
             BlockersText = ex.Message;
         }
+        Blockers = BlockersText.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(t => NoticeViewModel.FromText(t)).ToList();
         // Managed components, and the game's own DLLs (DLSS, Streamline, NR model) even when untouched.
         if (IsManaged || component.ChecksGameFiles && Kind == ComponentStatusKind.External && !HasBlockers)
         {
@@ -242,11 +263,15 @@ public sealed partial class ComponentViewModel : ObservableObject
                 StatusBrushKey = "Accent";
                 break;
             case VersionVerdict.Newer:
+                IsDowngrade = VersionCompare.IsDowngrade(check.Present, check.Latest);
+                VersionsText = $"{check.Present} → {check.Latest}";
                 State = UpdateState.UpdateAvailable;
                 StatusText = $"{source}{check.Present} · disponibile {check.Latest}";
                 StatusBrushKey = "Warn";
                 break;
             default:
+                IsDowngrade = VersionCompare.IsDowngrade(check.Present, check.Latest);
+                VersionsText = $"{check.Present} → {check.Latest}";
                 State = UpdateState.UpdateAvailable;
                 StatusText = $"Installato ({check.Present}) · versione non nota, ultima {check.Latest}";
                 StatusBrushKey = "Warn";
@@ -299,18 +324,13 @@ public sealed partial class ComponentViewModel : ObservableObject
     }
 
     [RelayCommand(CanExecute = nameof(CanRemove))]
-    private async Task RemoveAsync() => await Remove(false);
-
-    [RelayCommand(CanExecute = nameof(CanRemove))]
-    private async Task RemoveForceAsync() => await Remove(true);
-
-    private async Task Remove(bool force)
+    private async Task RemoveAsync()
     {
         var ctx = _owner.Context!;
         var host = _owner.Main.Host;
         var ok = await _owner.Main.RunAsync($"{Name}: rimozione", async (progress, cancel) =>
         {
-            var plan = await Task.Run(() => host.Components.PlanRemoval(ctx, Component.Id, force), cancel);
+            var plan = await RemovalFlow.PlanAsync(host, ctx, Component.Id, cancel);
             if (!Dialogs.ConfirmPlan(plan)) throw new OperationCanceledException();
             await Task.Run(() => host.Components.Apply(ctx, plan, progress), cancel);
         });

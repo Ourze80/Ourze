@@ -102,7 +102,9 @@ public class TransactionTests : IDisposable
         _f.Engine.Apply(b.Build());
         _f.GameFile("x.dll", "theirs");
 
-        Assert.Throws<BlockedException>(() => _f.Removal("comp"));
+        var ex = Assert.Throws<ModifiedByOthersException>(() => _f.Removal("comp"));
+        Assert.Contains("x.dll", ex.Message);
+        Assert.DoesNotContain("«", ex.Message);                                   // names no button
         _f.Engine.Apply(_f.Removal("comp", force: true));
         Assert.Equal("theirs", _f.Read("x.dll"));
         Assert.False(File.Exists(_f.GameFile("y.dll")));

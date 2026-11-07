@@ -8,4 +8,7 @@ public class HdlssException : Exception
 }
 
 /// <summary>A precondition that blocks an operation (game running, conflicting injector…).</summary>
-public sealed class BlockedException(string message) : HdlssException(message);
+public class BlockedException(string message) : HdlssException(message);
+
+/// <summary>A file to restore was changed by another program since install; removal can proceed only by leaving it as is.</summary>
+public sealed class ModifiedByOthersException(string message) : BlockedException(message);

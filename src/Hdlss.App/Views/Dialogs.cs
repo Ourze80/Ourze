@@ -21,6 +21,10 @@ public static class Dialogs
     public static bool Confirm(string message) =>
         MessageBox.Show(Owner!, message, "HDLSS5", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
 
+    /// <summary>Message with a primary action button and a cancel button. True = primary chosen.</summary>
+    public static bool Choose(string title, string message, string primary, string cancel = "Annulla") =>
+        new ChoiceDialog(title, message, primary, cancel) { Owner = Owner }.ShowDialog() == true;
+
     public static bool ConfirmPlan(ChangePlan plan) =>
         new PlanDialog(plan) { Owner = Owner }.ShowDialog() == true;
 

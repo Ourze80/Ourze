@@ -31,7 +31,7 @@ public sealed partial class GameDetailViewModel : ObservableObject
     public ObservableCollection<LegacyItemViewModel> Legacy { get; } = [];
     public ObservableCollection<ForeignItemViewModel> Foreign { get; } = [];
     public ObservableCollection<UnknownInjector> UnknownInjectors { get; } = [];
-    public ObservableCollection<string> Warnings { get; } = [];
+    public ObservableCollection<NoticeViewModel> Warnings { get; } = [];
     public ObservableCollection<string> Chips { get; } = [];
     public ObservableCollection<string> PlanSteps { get; } = [];
     /// <summary>Component ids that a 1.x install in this folder can be adopted as.</summary>
@@ -111,6 +111,7 @@ public sealed partial class GameDetailViewModel : ObservableObject
             {
                 ExeText = Game.Root;
                 Context = null;
+                SummaryComponents = SummaryWarnings = SummaryNr = SummaryNrTip = "";
                 TabComponents.Clear(); CompatIssues.Clear(); Legacy.Clear(); PlanSteps.Clear();
                 OnPropertyChanged(nameof(HasLegacy)); OnPropertyChanged(nameof(HasPlanSteps));
                 SetCard("Cartella protetta di Windows", Game.ProtectedReason, "Warn", PrimaryAction.None);
@@ -135,8 +136,9 @@ public sealed partial class GameDetailViewModel : ObservableObject
             Chips.Add(recommendation.HasNativeDlss ? "DLSS presente" : "senza DLSS");
             if (Game.Engine != EngineKind.Unknown) Chips.Add(Game.Engine == EngineKind.Unreal5 ? "Unreal Engine 5" : Game.Engine == EngineKind.Unreal4 ? "Unreal Engine 4" : "Unreal");
             Warnings.Clear();
-            foreach (var w in Game.Warnings.Distinct()) Warnings.Add(w);
-            if (ctx.Scan.AntiCheat != null) Warnings.Add(ctx.Scan.AntiCheat);
+            foreach (var w in Game.Warnings.Distinct()) Warnings.Add(WarningNotice(w));
+            if (ctx.Scan.AntiCheat != null) Warnings.Add(WarningNotice(ctx.Scan.AntiCheat));
+            await UpdateSummaryAsync(ctx);
 
             Legacy.Clear();
             LegacyComponents.Clear();
@@ -182,6 +184,41 @@ public sealed partial class GameDetailViewModel : ObservableObject
             TabComponents.Clear();
         }
         finally { Loading = false; }
+    }
+
+    // ── One-line summary under the title ──
+    [ObservableProperty] private string _summaryComponents = "";
+    [ObservableProperty] private string _summaryWarnings = "";
+    [ObservableProperty] private string _summaryNr = "";
+    [ObservableProperty] private string _summaryNrTip = "";
+    public bool HasSummaryWarnings => SummaryWarnings.Length > 0;
+    public bool HasSummaryNr => SummaryNr.Length > 0;
+    partial void OnSummaryWarningsChanged(string value) => OnPropertyChanged(nameof(HasSummaryWarnings));
+    partial void OnSummaryNrChanged(string value) => OnPropertyChanged(nameof(HasSummaryNr));
+
+    private static readonly string[] NrCostIds = [RenoDxNrComponent.ComponentId, FeederComponent.ComponentId];
+
+    private async Task UpdateSummaryAsync(GameContext ctx)
+    {
+        var n = ctx.State.Components.Count;
+        SummaryComponents = n == 0 ? "Nessun componente installato" : n == 1 ? "1 componente attivo" : $"{n} componenti attivi";
+        var w = Warnings.Count;
+        SummaryWarnings = w == 0 ? "" : w == 1 ? "1 avviso" : $"{w} avvisi";
+        if (!NrCostIds.Any(ctx.Installed)) { SummaryNr = ""; SummaryNrTip = ""; return; }
+        var log = System.IO.Path.Combine(ctx.Folder, "ReShade.log");
+        var cost = await Task.Run(() => NrCostReader.Read(log));
+        var it = System.Globalization.CultureInfo.GetCultureInfo("it-IT");
+        if (cost == null)
+        {
+            SummaryNr = "DLSS 5 NR: avvia il gioco per misurarne il costo";
+            SummaryNrTip = "";
+        }
+        else
+        {
+            SummaryNr = $"DLSS 5 NR: {cost.GpuMs.ToString("0.0", it)} ms per fotogramma"
+                        + (cost.HasFps ? $" (≈ {cost.FpsWithout} → {cost.FpsWith} FPS)" : "");
+            SummaryNrTip = "Tempo che DLSS 5 NR aggiunge a ogni fotogramma, misurato dall'add-on durante l'ultima partita (ReShade.log).";
+        }
     }
 
     /// <summary>
@@ -418,7 +455,7 @@ public sealed partial class GameDetailViewModel : ObservableObject
     {
         var release = NrRules.ModelToRelease(ctx, componentId);
         if (release == null) return;
-        var plan = await Task.Run(() => Main.Host.Components.PlanRemoval(ctx, release), cancel);
+        var plan = await RemovalFlow.PlanAsync(Main.Host, ctx, release, cancel);
         plan.Notes.Insert(0, $"Il «{ComponentCatalog.NameOf(release)}» installato a parte viene tolto: {ComponentCatalog.NameOf(componentId)} include già il modello e lo reinstalla subito dopo.");
         if (!plan.IsEmpty)
         {
@@ -592,13 +629,19 @@ public sealed partial class GameDetailViewModel : ObservableObject
         if (!Advanced && !Dialogs.Confirm($"Disattivo il Neural Rendering su {Game.Name}?\n\nVengono rimessi i file originali. ReShade e le altre mod restano installati.")) return;
         await Main.RunAsync("Disattivazione del Neural Rendering", async (progress, cancel) =>
         {
-            var plan = await Task.Run(() => Main.Host.Components.PlanRemoval(ctx, id), cancel);
+            var plan = await RemovalFlow.PlanAsync(Main.Host, ctx, id, cancel);
             if (Advanced && !Dialogs.ConfirmPlan(plan)) throw new OperationCanceledException();
             await Task.Run(() => Main.Host.Components.Apply(ctx, plan, progress), cancel);
         });
         VerifyTitle = null;
         await AfterChangeAsync(id);
     }
+
+    /// <summary>A game warning, with a button to the «Eseguibile» dialog when that is where it is solved.</summary>
+    private NoticeViewModel WarningNotice(string text) =>
+        text.Contains("«Eseguibile", StringComparison.Ordinal)
+            ? NoticeViewModel.FromText(text, "Eseguibile", EditExeCommand)
+            : NoticeViewModel.FromText(text);
 
     [RelayCommand]
     private async Task EditExeAsync()

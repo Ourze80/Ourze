@@ -14,10 +14,10 @@ public static class NrRules
     public static void CheckSingleInjector(GameContext ctx, string self, List<string> blockers)
     {
         foreach (var other in Injectors.Where(i => i != self && DoesNr(ctx, i)))
-            blockers.Add($"{ComponentCatalog.NameOf(other)} è già installato: usa un solo percorso Neural Rendering alla volta.");
+            blockers.Add($"{ComponentCatalog.NameOf(other)} già installato: due percorsi Neural Rendering insieme non funzionano. Per usare questo, rimuovi prima {ComponentCatalog.NameOf(other)} dalla sua scheda.");
         var owned = ctx.State.Components.Values.SelectMany(c => c.Files).Select(f => f.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var addon in ctx.Scan.NrAddons().Where(a => !owned.Contains(a)))
-            blockers.Add($"Add-on NR di un altro programma presente: {addon}. Importalo con «Importa in HDLSS5» oppure rimuovilo: due passaggi NR insieme non funzionano.");
+            blockers.Add($"Add-on NR di un altro programma presente: {addon}. Due passaggi NR insieme non funzionano. Importalo con «Importa in HDLSS5» oppure rimuovilo.");
     }
 
     /// <summary>
@@ -43,8 +43,8 @@ public static class NrRules
 
     public static void CheckGpu(GameContext ctx, List<string> blockers)
     {
-        if (!ctx.Gpu.SupportsNr) blockers.Add("GPU NVIDIA RTX 4000/5000 non rilevata.");
-        else if (ctx.Gpu.DriverTooOld) blockers.Add($"Driver {ctx.Gpu.Driver}: il modello NR richiede almeno {GpuInfo.MinimumDriver}.");
+        if (!ctx.Gpu.SupportsNr) blockers.Add("GPU NVIDIA RTX 4000/5000 non rilevata: il Neural Rendering funziona solo su queste schede. Su questo PC non è disponibile.");
+        else if (ctx.Gpu.DriverTooOld) blockers.Add($"Driver NVIDIA troppo vecchio ({ctx.Gpu.Driver}): il modello NR richiede almeno la versione {GpuInfo.MinimumDriver}. Aggiorna il driver dal sito NVIDIA.");
     }
 
     public static string ModelFile(GameContext ctx, out NrModel model)
@@ -61,7 +61,7 @@ public static class NrRules
     }
 
     public static string AddonPathOutside(GameContext ctx) =>
-        $"AddonPath di ReShade punta fuori dalla cartella del gioco ({ctx.Scan.AddonPathValue}). "
+        $"AddonPath di ReShade fuori dal gioco: punta a {ctx.Scan.AddonPathValue}, cioè fuori dalla cartella del gioco, e HDLSS5 non può scrivere lì. "
         + $"In {ctx.Scan.ReShadeConfig}, sezione [ADDON], imposta AddonPath=.\\ (oppure cancella la riga) e riprova.";
 }
 
@@ -102,7 +102,7 @@ public sealed class NrModelComponent : ComponentBase
     {
         NrRules.CheckGpu(ctx, blockers);
         var owner = ctx.State.OwnerOf("nvngx_dlssnr.dll");
-        if (owner != null && owner != Id) blockers.Add($"Già installato insieme a {ComponentCatalog.NameOf(owner)}: si aggiorna e si rimuove con lui.");
+        if (owner != null && owner != Id) blockers.Add($"Installato insieme a {ComponentCatalog.NameOf(owner)}: fa parte della sua installazione. Si aggiorna e si rimuove dalla scheda di {ComponentCatalog.NameOf(owner)}.");
     }
 
     public override Task<ChangePlan> PlanInstallAsync(GameContext ctx, IReadOnlyDictionary<string, string> options,
@@ -156,11 +156,11 @@ public sealed class RenoDxNrComponent : ComponentBase
         NrRules.CheckGpu(ctx, blockers);
         NrRules.CheckSingleInjector(ctx, Id, blockers);
         if (ctx.Api != GraphicsApi.DX12 && ctx.Api != GraphicsApi.Vulkan)
-            blockers.Add("RenoDX NR richiede DirectX 12 (o DLSS Vulkan nativo). Per DX11 usa «Feeder (senza DLSS)».");
+            blockers.Add("RenoDX NR non va con questo gioco: richiede DirectX 12 (o DLSS Vulkan nativo). Per DX11 usa la scheda «Feeder (senza DLSS)».");
         if (ctx.Installed(ReShadeComponent.ComponentId) && !ctx.Scan.ReShadeSupportsAddons && ctx.Api != GraphicsApi.Vulkan)
-            blockers.Add("La copia di ReShade non supporta il caricamento anticipato degli add-on: reinstallala.");
+            blockers.Add("ReShade senza caricamento anticipato degli add-on: la copia installata non lo supporta e RenoDX NR ne ha bisogno. Reinstalla ReShade dalla sua scheda.");
         var owner = ctx.State.OwnerOf("nvngx_dlssnr.dll");
-        if (owner != null && owner != Id && !NrRules.CanTakeOverModel(owner)) blockers.Add($"Il modello NR è gestito da {ComponentCatalog.NameOf(owner)}: rimuovilo prima.");
+        if (owner != null && owner != Id && !NrRules.CanTakeOverModel(owner)) blockers.Add($"Modello NR gestito da {ComponentCatalog.NameOf(owner)}: il file del modello può avere un solo gestore. Rimuovi prima {ComponentCatalog.NameOf(owner)}.");
     }
 
     public override Task<string?> LatestVersionAsync(GameContext ctx, IReadOnlyDictionary<string, string> options, CancellationToken cancel) =>

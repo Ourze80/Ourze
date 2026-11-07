@@ -115,7 +115,7 @@ public sealed partial class DlssPageViewModel(MainViewModel main) : ObservableOb
         if (choice.Value == VersionChoice.OriginalValue)
         {
             if (!ctx.Installed(componentId)) return;
-            plan = await Task.Run(() => host.Components.PlanRemoval(ctx, componentId), cancel);
+            plan = await RemovalFlow.PlanAsync(host, ctx, componentId, cancel);
         }
         else
         {

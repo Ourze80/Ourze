@@ -44,9 +44,9 @@ public sealed partial class RenoDxHdrComponent : ComponentBase, ILocalImport
     {
         ReShadeAddons.RequireAddonSupport(ctx, blockers);
         if (ReShadeAddons.AddonPresent(ctx, "^AutoHDR\\.addon64$"))
-            blockers.Add("AutoHDR presente: rimuovilo, due conversioni HDR non vanno combinate.");
+            blockers.Add("AutoHDR presente: due conversioni HDR insieme danno un'immagine sbagliata. Rimuovi AutoHDR (AutoHDR.addon64) e riprova.");
         var foreign = ReShadeAddons.ForeignAddons(ctx, HdrPattern).ToList();
-        if (foreign.Count > 0) blockers.Add($"Altro add-on RenoDX HDR presente: {string.Join(", ", foreign)}.");
+        if (foreign.Count > 0) blockers.Add($"Altro add-on RenoDX HDR presente: due add-on HDR insieme si disturbano ({string.Join(", ", foreign)}). Rimuovi quello dell'altro programma.");
     }
 
     public override bool ChecksAvailability => true;
@@ -225,12 +225,12 @@ public sealed class UnrealHdrComponent : ComponentBase
 
     protected override void CheckBlockers(GameContext ctx, List<string> blockers)
     {
-        if (ctx.Game.Engine == EngineKind.Unknown) { blockers.Add("Disponibile solo per giochi Unreal Engine."); return; }
-        if (ctx.Game.Engine == EngineKind.Unreal4) blockers.Add("Unreal Engine 4: profilo non verificato, usa una mod RenoDX dedicata.");
+        if (ctx.Game.Engine == EngineKind.Unknown) { blockers.Add("Solo per giochi Unreal Engine: questo gioco non risulta fatto con Unreal, quindi qui non è disponibile."); return; }
+        if (ctx.Game.Engine == EngineKind.Unreal4) blockers.Add("Unreal Engine 4 non verificato: questo profilo HDR non è stato provato su UE4. Usa una mod RenoDX dedicata al gioco.");
         if (ctx.Services.Settings.Profile(ctx.Game.Id).ConfigFolder == null && Config(ctx) == null)
-            blockers.Add("Cartella Saved/Config non trovata: avvia il gioco una volta, poi riprova.");
-        if (!ctx.Installed(Id) && NativeHdrEnabled(ctx)) blockers.Add("HDR nativo già attivo nel gioco: usa il suo menu HDR.");
-        if (ReShadeAddons.AddonPresent(ctx, "^AutoHDR\\.addon64$")) blockers.Add("AutoHDR presente: rimuovilo prima.");
+            blockers.Add("Cartella Saved/Config non trovata: il gioco non ha ancora creato le sue impostazioni. Avvia il gioco una volta, chiudilo e riprova.");
+        if (!ctx.Installed(Id) && NativeHdrEnabled(ctx)) blockers.Add("HDR nativo già attivo nel gioco: non serve un'altra mod HDR. Usa il menu HDR del gioco.");
+        if (ReShadeAddons.AddonPresent(ctx, "^AutoHDR\\.addon64$")) blockers.Add("AutoHDR presente: va in conflitto con questa mod HDR. Rimuovi AutoHDR e riprova.");
     }
 
     public override Task<ChangePlan> PlanInstallAsync(GameContext ctx, IReadOnlyDictionary<string, string> options,

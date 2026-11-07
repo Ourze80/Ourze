@@ -48,6 +48,31 @@ public static partial class VersionCompare
             ? VersionVerdict.UpToDate : VersionVerdict.Newer;
     }
 
+    /// <summary>
+    /// True when <paramref name="latest"/> is not newer than <paramref name="installed"/> by their dotted numbers
+    /// (installed is ahead or equal, e.g. "v3.0.1-1188-g..." vs "v3.0.1"): installing it would be a reinstall or downgrade.
+    /// False when the numbers can't be compared (hashes, "importato").
+    /// </summary>
+    public static bool IsDowngrade(string? installed, string latest)
+    {
+        var have = Clean(installed);
+        var want = Clean(latest);
+        if (have.Length == 0) return false;
+        // A git-describe build (v3.0.1-1195-g…) is ahead of its own tag.
+        var dev = Describe().Match(have) is { Success: true } m;
+        if (dev) have = Describe().Match(have).Groups[1].Value;
+        var a = Numbers().Matches(have).Select(x => x.Value).ToList();
+        var b = Numbers().Matches(want).Select(x => x.Value).ToList();
+        if (a.Count == 0 || b.Count == 0) return false;
+        for (int i = 0; i < Math.Min(a.Count, b.Count); i++)
+        {
+            int c = CompareNumbers(a[i], b[i]);
+            if (c != 0) return c > 0;
+        }
+        // Same numbers: only a dev build is ahead; a different variant ("F5 · v1.2.0" → "Standard · v1.2.0") is not a downgrade.
+        return dev;
+    }
+
     private static string Text(string label) =>
         string.Concat(Numbers().Replace(label, " ").Split([' ', '·', 'v', 'V'], StringSplitOptions.RemoveEmptyEntries));
 

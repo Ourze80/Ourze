@@ -32,8 +32,8 @@ public sealed partial class ReShadeComponent : ComponentBase
     {
         var managed = ctx.State.Get(Id);
         var foreign = ctx.Scan.ReShadeLoaders.Where(l => managed?.FindFile(l) == null).ToList();
-        if (foreign.Count > 0) blockers.Add($"ReShade è già installato da un altro programma ({string.Join(", ", foreign)}). Usa «Importa in HDLSS5» per gestirlo da qui.");
-        if (ctx.Api == GraphicsApi.Unknown) blockers.Add("API grafica non riconosciuta: impostala in «Eseguibile e API».");
+        if (foreign.Count > 0) blockers.Add($"ReShade di un altro programma ({string.Join(", ", foreign)}): HDLSS5 non lo gestisce ancora. Usa «Importa in HDLSS5» per gestirlo da qui.");
+        if (ctx.Api == GraphicsApi.Unknown) blockers.Add("API grafica non riconosciuta: HDLSS5 non ha capito se il gioco usa DX11, DX12 o Vulkan. Impostala in «Eseguibile e API».");
     }
 
     public override async Task<ChangePlan> PlanInstallAsync(GameContext ctx, IReadOnlyDictionary<string, string> options,

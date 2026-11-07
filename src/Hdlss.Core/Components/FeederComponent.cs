@@ -46,15 +46,15 @@ public sealed partial class FeederComponent : ComponentBase
     {
         NrRules.CheckGpu(ctx, blockers);
         NrRules.CheckSingleInjector(ctx, Id, blockers);
-        if (ctx.Api == GraphicsApi.Unknown) blockers.Add("API grafica non riconosciuta: Feeder richiede x64 DX11, DX12 o Vulkan. Impostala in «Eseguibile e API».");
+        if (ctx.Api == GraphicsApi.Unknown) blockers.Add("API grafica non riconosciuta: Feeder funziona solo con giochi x64 DX11, DX12 o Vulkan e HDLSS5 non ha capito quale usa questo gioco. Impostala in «Eseguibile e API».");
         if (ctx.Installed(ReShadeComponent.ComponentId) && ctx.Api != GraphicsApi.Vulkan && !ctx.Scan.ReShadeSupportsAddons)
-            blockers.Add("La copia di ReShade non supporta il caricamento anticipato degli add-on: reinstallala.");
-        if (ctx.Scan.OptiScalerProxy != null) blockers.Add("OptiScaler presente: rimuovilo, Feeder usa RenoDX NR.");
-        if (ctx.Scan.AddonFolder.Length > 0) blockers.Add("AddonPath di ReShade personalizzato: Feeder richiede gli add-on nella cartella del gioco.");
+            blockers.Add("ReShade senza caricamento anticipato degli add-on: la copia installata non lo supporta e Feeder ne ha bisogno. Reinstalla ReShade dalla sua scheda.");
+        if (ctx.Scan.OptiScalerProxy != null) blockers.Add("OptiScaler presente: Feeder usa RenoDX NR e non può convivere con OptiScaler. Rimuovi OptiScaler dalla sua scheda.");
+        if (ctx.Scan.AddonFolder.Length > 0) blockers.Add("AddonPath di ReShade personalizzato: Feeder trova gli add-on solo nella cartella del gioco. Riporta AddonPath alla cartella del gioco nel file di configurazione di ReShade.");
         foreach (var name in new[] { "nvngx_dlss.dll", "nvngx_dlssnr.dll" })
         {
             var owner = ctx.State.OwnerOf(name);
-            if (owner != null && owner != Id && !(name == "nvngx_dlssnr.dll" && NrRules.CanTakeOverModel(owner))) blockers.Add($"{name} è gestito da {ComponentCatalog.NameOf(owner)}.");
+            if (owner != null && owner != Id && !(name == "nvngx_dlssnr.dll" && NrRules.CanTakeOverModel(owner))) blockers.Add($"{name} è gestito da «{ComponentCatalog.NameOf(owner)}»: una DLL può avere un solo gestore. Rimuovi «{ComponentCatalog.NameOf(owner)}» dalla sua scheda, poi installa Feeder.");
         }
     }
 

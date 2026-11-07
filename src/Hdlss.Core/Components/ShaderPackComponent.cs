@@ -31,7 +31,7 @@ public sealed class ShaderPackComponent(string key, string name, string repo, st
     protected override void CheckBlockers(GameContext ctx, List<string> blockers)
     {
         ReShadeAddons.RequireAddonSupport(ctx, blockers);
-        if (Key == "cas" && (ctx.Installed(Lilium.Id) || Has1x(ctx, "lilium"))) blockers.Add("CAS è già incluso in Lilium: attiva «Lilium CAS» nel menu ReShade.");
+        if (Key == "cas" && (ctx.Installed(Lilium.Id) || Has1x(ctx, "lilium"))) blockers.Add("CAS già incluso in Lilium: Lilium ha la sua versione di CAS. Attiva «Lilium CAS» nel menu ReShade invece di installarlo.");
     }
 
     public override async Task<string?> LatestVersionAsync(GameContext ctx, IReadOnlyDictionary<string, string> options, CancellationToken cancel) =>

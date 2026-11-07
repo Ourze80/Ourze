@@ -28,8 +28,7 @@ public static class RemovalPlanner
                     continue;
                 }
                 if (!force)
-                    throw new BlockedException($"{f.Path} è stato modificato da un'altra app dopo l'installazione. " +
-                        "Usa «Rimuovi comunque» per lasciarlo così com'è e rimuovere il resto.");
+                    throw new ModifiedByOthersException($"{f.Path} è stato modificato da un altro programma dopo l'installazione.");
                 plan.Notes.Add($"{f.Path}: modificato da altro software, lasciato invariato.");
                 continue;
             }
