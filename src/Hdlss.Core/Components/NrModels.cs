@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using Hdlss.Core.Hardware;
 using Hdlss.Core.IO;
 
@@ -16,7 +17,7 @@ public static class NrModels
     {
         40 => Rtx40,
         50 => Rtx50,
-        _ => throw new BlockedException("Serve una GPU NVIDIA RTX 4000 o 5000 per scegliere il modello NR."),
+        _ => throw new BlockedException(Tx.Get("nrmodel.needGpu")),
     };
 
     public static NrModel? Identify(string file)
@@ -35,9 +36,9 @@ public static class NrModels
             var version = PeFile.FileVersion(file);
             if (!PeFile.IsPe64(file) || !FileHash.Equal(FileHash.OfFile(file), model.Sha256) || version != new Version(310, 9, 16, 0)
                 || !PeFile.Identity(file).Contains("DLSSNR", StringComparison.OrdinalIgnoreCase))
-                throw new HdlssException($"Il modello in {file} non corrisponde a {model.Label} (hash/versione).");
+                throw new HdlssException(Tx.Get("nrmodel.mismatch", file, model.Label));
             return file;
         }
-        throw new HdlssException("Cartella nr-packages non trovata. Copiala accanto a HDLSS5.exe oppure indica la cartella di HDLSS5 1.x nelle impostazioni.");
+        throw new HdlssException(Tx.Get("nrmodel.noPackages"));
     }
 }

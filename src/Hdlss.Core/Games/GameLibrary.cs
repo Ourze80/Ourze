@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -106,7 +107,7 @@ public sealed partial class GameLibrary(AppSettings settings, Log log)
                     game.Exe = full;
                     MigrateToolTarget(game, profile, accept);
                 }
-                else game.Warnings.Add("Eseguibile salvato non trovato: il file non esiste più e HDLSS5 ne ha scelto un altro. Controllalo in «Eseguibile».");
+                else game.Warnings.Add(Tx.Get("game.warn.exeMissing"));
             }
             catch (UnsafePathException ex) { game.Warnings.Add(ex.Message); }
         }
@@ -114,8 +115,8 @@ public sealed partial class GameLibrary(AppSettings settings, Log log)
         {
             var (exe, certain) = ExecutableDetector.Pick(game.Root, accept);
             game.Exe = exe;
-            if (exe.Length == 0) game.Warnings.Add("Nessun eseguibile x64 trovato: HDLSS5 non ha trovato un .exe a 64 bit del gioco. Scegli quello giusto in «Eseguibile».");
-            else if (!certain) game.Warnings.Add("Eseguibile da verificare: HDLSS5 ha scelto il file più grande perché non c'erano indizi migliori. Controllalo in «Eseguibile».");
+            if (exe.Length == 0) game.Warnings.Add(Tx.Get("game.warn.noExe"));
+            else if (!certain) game.Warnings.Add(Tx.Get("game.warn.exeBySize"));
         }
         if (game.HasExe)
         {
@@ -153,7 +154,7 @@ public sealed partial class GameLibrary(AppSettings settings, Log log)
             {
                 var full = profile.ModFolder == "." ? Path.GetFullPath(game.Root) : PathGuard.Resolve(game.Root, profile.ModFolder);
                 if (Directory.Exists(full)) { game.ModFolder = full; return; }
-                game.Warnings.Add("Cartella delle mod non trovata: quella salvata non esiste più e HDLSS5 ne ha scelta un'altra. Controllala in «Eseguibile».");
+                game.Warnings.Add(Tx.Get("game.warn.modFolderMissing"));
             }
             catch (UnsafePathException ex) { game.Warnings.Add(ex.Message); }
         }
@@ -165,13 +166,13 @@ public sealed partial class GameLibrary(AppSettings settings, Log log)
                 && HasManagedState?.Invoke(old) == true && HasManagedState?.Invoke(game.ExeFolder) != true)
             {
                 game.ModFolder = old; game.ModFolderAuto = true;
-                game.Warnings.Add($"Mod nella cartella sbagliata ({PathGuard.RelativeTo(game.Root, old)}): HDLSS5 gestisce componenti lì, ma il gioco carica le DLL dalla cartella dell'eseguibile. Rimuovili, poi in «Eseguibile» scegli come cartella delle mod quella dell'eseguibile e reinstallali.");
+                game.Warnings.Add(Tx.Get("game.warn.modsWrongFolder", PathGuard.RelativeTo(game.Root, old)));
             }
             return;
         }
         if (HasManagedState?.Invoke(game.ExeFolder) == true)
         {
-            game.Warnings.Add($"Cartella delle mod sbagliata: il gioco carica le DLL da {PathGuard.RelativeTo(game.Root, auto)}, ma HDLSS5 gestisce già componenti nella cartella dell'eseguibile. Rimuovili, poi scegli la cartella delle mod in «Eseguibile».");
+            game.Warnings.Add(Tx.Get("game.warn.wrongModFolder", PathGuard.RelativeTo(game.Root, auto)));
             return;
         }
         game.ModFolder = auto; game.ModFolderAuto = true;
@@ -219,14 +220,14 @@ public sealed partial class GameLibrary(AppSettings settings, Log log)
     public static Game Manual(string exe, string? name = null)
     {
         var path = Path.GetFullPath(exe);
-        if (!File.Exists(path) || !path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) throw new HdlssException("Scegli un eseguibile .exe esistente.");
-        if (!PeFile.IsPe64(path)) throw new HdlssException("L'eseguibile non è x64: i componenti NR richiedono giochi a 64 bit.");
+        if (!File.Exists(path) || !path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) throw new HdlssException(Tx.Get("game.chooseExe"));
+        if (!PeFile.IsPe64(path)) throw new HdlssException(Tx.Get("game.notX64"));
         var id = "manual-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(path.ToUpperInvariant())))[..20].ToLowerInvariant();
         return new Game
         {
             Id = id, Name = string.IsNullOrWhiteSpace(name) ? Path.GetFileNameWithoutExtension(path) : name,
             Root = ManualRoot(path), Exe = path, Store = GameStore.Manual,
-            ProtectedReason = path.Contains(@"\WindowsApps\", StringComparison.OrdinalIgnoreCase) ? "Cartella WindowsApps protetta: non modificabile." : null,
+            ProtectedReason = path.Contains(@"\WindowsApps\", StringComparison.OrdinalIgnoreCase) ? Tx.Get("game.windowsApps") : null,
         };
     }
 

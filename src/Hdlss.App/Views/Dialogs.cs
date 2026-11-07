@@ -12,8 +12,8 @@ public static class Dialogs
 {
     private static Window? Owner => Application.Current?.MainWindow;
 
-    public static void Error(string message, string title = "Errore") =>
-        MessageBox.Show(Owner!, message, "HDLSS5 · " + title, MessageBoxButton.OK, MessageBoxImage.Warning);
+    public static void Error(string message, string? title = null) =>
+        MessageBox.Show(Owner!, message, "HDLSS5 · " + (title ?? Loc.T("dlg.error")), MessageBoxButton.OK, MessageBoxImage.Warning);
 
     public static void Info(string message) =>
         MessageBox.Show(Owner!, message, "HDLSS5", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -22,15 +22,15 @@ public static class Dialogs
         MessageBox.Show(Owner!, message, "HDLSS5", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
 
     /// <summary>Message with a primary action button and a cancel button. True = primary chosen.</summary>
-    public static bool Choose(string title, string message, string primary, string cancel = "Annulla") =>
-        new ChoiceDialog(title, message, primary, cancel) { Owner = Owner }.ShowDialog() == true;
+    public static bool Choose(string title, string message, string primary, string? cancel = null) =>
+        new ChoiceDialog(title, message, primary, cancel ?? Loc.T("plan.cancel")) { Owner = Owner }.ShowDialog() == true;
 
     public static bool ConfirmPlan(ChangePlan plan) =>
         new PlanDialog(plan) { Owner = Owner }.ShowDialog() == true;
 
     public static string? PickExe(string? folder)
     {
-        var dialog = new OpenFileDialog { Filter = "Eseguibile del gioco|*.exe", InitialDirectory = folder ?? "" };
+        var dialog = new OpenFileDialog { Filter = Loc.T("exe.filter"), InitialDirectory = folder ?? "" };
         return dialog.ShowDialog(Owner) == true ? dialog.FileName : null;
     }
 

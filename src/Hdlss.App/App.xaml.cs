@@ -17,10 +17,11 @@ public partial class App : Application
         // two windows on the same data (which could race on the same game files) may not.
         var dataKey = Hdlss.Core.IO.FileHash.OfBytes(System.Text.Encoding.UTF8.GetBytes(
             Hdlss.Core.Storage.AppPaths.ForCurrentProcess().Data.ToUpperInvariant()))[..16];
+        EarlyLanguage();
         _single = new Mutex(true, @"Local\HDLSS5-v2-" + dataKey, out bool first);
         if (!first)
         {
-            MessageBox.Show("HDLSS5 è già aperto.", "HDLSS5", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(Loc.T("app.alreadyOpen"), "HDLSS5", MessageBoxButton.OK, MessageBoxImage.Information);
             Shutdown();
             return;
         }
@@ -30,7 +31,7 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            MessageBox.Show("Impossibile avviare HDLSS5:\n" + ex.Message, "HDLSS5", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(Loc.T("app.startFail") + ex.Message, "HDLSS5", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
             return;
         }
@@ -47,10 +48,21 @@ public partial class App : Application
         _ = vm.InitializeAsync();
     }
 
+    /// <summary>Message boxes shown before the host exists still follow the saved language.</summary>
+    private static void EarlyLanguage()
+    {
+        try
+        {
+            var paths = Hdlss.Core.Storage.AppPaths.ForCurrentProcess();
+            Loc.Instance.Language = Hdlss.Core.Settings.AppSettings.Load(paths).Language;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Hdlss.Core.HdlssException or System.Text.Json.JsonException) { }
+    }
+
     private void OnUnhandled(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         _host?.Log.Error("Errore non gestito", e.Exception);
-        MessageBox.Show(e.Exception.Message, "HDLSS5 · errore", MessageBoxButton.OK, MessageBoxImage.Error);
+        MessageBox.Show(e.Exception.Message, Loc.T("dlg.errorTitle"), MessageBoxButton.OK, MessageBoxImage.Error);
         e.Handled = true;
     }
 

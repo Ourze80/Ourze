@@ -1,3 +1,5 @@
+using Hdlss.Core.Text;
+
 namespace Hdlss.Core.Components;
 
 public static class ComponentCatalog
@@ -29,18 +31,18 @@ public static class ComponentCatalog
 
     public static string CategoryName(ComponentCategory c) => c switch
     {
-        ComponentCategory.NeuralRendering => "Neural Rendering",
-        ComponentCategory.Upscaling => "DLL del gioco (DLSS e Streamline)",
-        ComponentCategory.Hdr => "HDR",
-        ComponentCategory.FrameGeneration => "Generazione fotogrammi",
-        ComponentCategory.Shaders => "Shader ReShade",
-        ComponentCategory.Loaders => "Loader per mod",
+        ComponentCategory.NeuralRendering => Tx.Get("cat.neural"),
+        ComponentCategory.Upscaling => Tx.Get("cat.upscaling"),
+        ComponentCategory.Hdr => Tx.Get("cat.hdr"),
+        ComponentCategory.FrameGeneration => Tx.Get("cat.framegen"),
+        ComponentCategory.Shaders => Tx.Get("cat.shaders"),
+        ComponentCategory.Loaders => Tx.Get("cat.loaders"),
         _ => c.ToString(),
     };
 
     public static IComponent Get(string id) =>
         All.FirstOrDefault(c => string.Equals(c.Id, id, StringComparison.OrdinalIgnoreCase))
-        ?? throw new HdlssException($"Componente sconosciuto: {id}");
+        ?? throw new HdlssException(Tx.Get("cat.unknownComponent", id));
 
     public static string NameOf(string id) =>
         All.FirstOrDefault(c => string.Equals(c.Id, id, StringComparison.OrdinalIgnoreCase))?.Name ?? id;

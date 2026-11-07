@@ -3,6 +3,7 @@ using Hdlss.Core.Diagnostics;
 using Hdlss.Core.Games;
 using Hdlss.Core.IO;
 using Hdlss.Core.Net;
+using Hdlss.Core.Text;
 
 namespace Hdlss.Core.Components;
 
@@ -13,10 +14,10 @@ public static class ReShadeAddons
     public static void RequireAddonSupport(GameContext ctx, List<string> blockers)
     {
         var loaders = ctx.Scan.ReShadeLoaders;
-        if (loaders.Count == 0) blockers.Add("ReShade mancante: questa mod è un add-on di ReShade e senza non parte. Installa prima ReShade (add-on).");
-        else if (loaders.Count > 1) blockers.Add("Più copie di ReShade: il gioco ne carica una sola e le altre creano confusione. Rimuovi le copie in più e tieni una sola ReShade.");
+        if (loaders.Count == 0) blockers.Add(Tx.Get("addon.noReshade"));
+        else if (loaders.Count > 1) blockers.Add(Tx.Get("addon.manyReshade"));
         else if (!loaders[0].StartsWith(Vulkan.Dir) && !ctx.Scan.ReShadeSupportsAddons)
-            blockers.Add("ReShade senza supporto add-on: la copia installata non carica gli add-on. Reinstallala da HDLSS5.");
+            blockers.Add(Tx.Get("addon.noAddonSupport"));
         if (ctx.Scan.AddonFolder == "?") blockers.Add(NrRules.AddonPathOutside(ctx));
     }
 
@@ -40,17 +41,17 @@ public static class Releases
         GameContext ctx, string repo, Func<ReleaseAsset, bool> match, long maxBytes, bool requireDigest,
         IProgress<OperationProgress>? progress, CancellationToken cancel, Func<string, bool>? tagFilter = null)
     {
-        progress?.Report(new($"Cerco l'ultima release di {repo}…"));
+        progress?.Report(new(Tx.Get("rel.searching", repo)));
         using var json = await ctx.Services.Http.GetJsonAsync(GitHub.LatestUrl(repo), cancel, TimeSpan.FromMinutes(30));
         var release = GitHubRelease.Parse(json.RootElement);
         if (release.Draft || release.Prerelease || (tagFilter != null && !tagFilter(release.Tag)))
-            throw new HdlssException($"{repo}: nessuna release stabile disponibile.");
+            throw new HdlssException(Tx.Get("rel.noStable", repo));
         var assets = release.Assets.Where(match).ToList();
-        if (assets.Count != 1) throw new HdlssException($"{repo}: pacchetto della release non riconosciuto ({assets.Count} corrispondenze).");
+        if (assets.Count != 1) throw new HdlssException(Tx.Get("rel.assetUnknown", repo, assets.Count));
         var asset = assets[0];
-        if (!GitHubRelease.FromRepo(asset, repo, release.Tag)) throw new HdlssException($"{repo}: origine del download non valida.");
-        if (asset.Size > maxBytes) throw new HdlssException($"{asset.Name}: dimensione oltre il limite previsto.");
-        if (requireDigest && asset.Sha256 == null) throw new HdlssException($"{asset.Name}: la release non pubblica lo SHA-256, download non verificabile.");
+        if (!GitHubRelease.FromRepo(asset, repo, release.Tag)) throw new HdlssException(Tx.Get("rel.badOrigin", repo));
+        if (asset.Size > maxBytes) throw new HdlssException(Tx.Get("rel.tooBig", asset.Name));
+        if (requireDigest && asset.Sha256 == null) throw new HdlssException(Tx.Get("rel.noDigest", asset.Name));
         if (asset.Sha256 == null) ctx.Services.Log.Warn($"{asset.Name}: nessuno SHA-256 pubblicato, verifica solo tramite HTTPS.");
         var file = await ctx.Services.Http.DownloadAsync(asset.Url, asset.Name, asset.Sha256, maxBytes, progress, cancel);
         return (release, asset, file);

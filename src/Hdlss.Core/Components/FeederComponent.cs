@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -32,29 +33,29 @@ public sealed partial class FeederComponent : ComponentBase
     private const string DlssManifest = "https://raw.githubusercontent.com/beeradmoore/dlss-swapper-manifest-builder/main/manifest.json";
 
     public override string Id => ComponentId;
-    public override string Name => "Feeder (senza DLSS) · sperimentale";
-    public override string Description => "NR per giochi senza DLSS nativo, x64 DX11/DX12/Vulkan. Installa Feeder, LumeniteFX, RenoDX NR Lecram 10.8, DLSS SR e il modello NR. I vettori di movimento stimati possono causare scie o toccare l'HUD.";
+    public override string Name => Tx.Get("fd.name");
+    public override string Description => Tx.Get("fd.desc");
     public override IReadOnlyList<string> Requires => [ReShadeComponent.ComponentId];
 
     [GeneratedRegex(@"^v\d+\.\d+\.\d+$")] private static partial Regex StableTag();
 
     protected override ComponentStatus? DetectExternal(GameContext ctx) =>
         ctx.Scan.Addons.Any(a => Path.GetFileName(a).Equals(FeedAddon, StringComparison.OrdinalIgnoreCase))
-            ? new ComponentStatus(ComponentStatusKind.External, $"{FeedAddon} presente · installato da altro software") : null;
+            ? new ComponentStatus(ComponentStatusKind.External, Tx.Get("fd.status.external", FeedAddon)) : null;
 
     protected override void CheckBlockers(GameContext ctx, List<string> blockers)
     {
         NrRules.CheckGpu(ctx, blockers);
         NrRules.CheckSingleInjector(ctx, Id, blockers);
-        if (ctx.Api == GraphicsApi.Unknown) blockers.Add("API grafica non riconosciuta: Feeder funziona solo con giochi x64 DX11, DX12 o Vulkan e HDLSS5 non ha capito quale usa questo gioco. Impostala in «Eseguibile e API».");
+        if (ctx.Api == GraphicsApi.Unknown) blockers.Add(Tx.Get("fd.block.api"));
         if (ctx.Installed(ReShadeComponent.ComponentId) && ctx.Api != GraphicsApi.Vulkan && !ctx.Scan.ReShadeSupportsAddons)
-            blockers.Add("ReShade senza caricamento anticipato degli add-on: la copia installata non lo supporta e Feeder ne ha bisogno. Reinstalla ReShade dalla sua scheda.");
-        if (ctx.Scan.OptiScalerProxy != null) blockers.Add("OptiScaler presente: Feeder usa RenoDX NR e non può convivere con OptiScaler. Rimuovi OptiScaler dalla sua scheda.");
-        if (ctx.Scan.AddonFolder.Length > 0) blockers.Add("AddonPath di ReShade personalizzato: Feeder trova gli add-on solo nella cartella del gioco. Riporta AddonPath alla cartella del gioco nel file di configurazione di ReShade.");
+            blockers.Add(Tx.Get("fd.block.noEarly"));
+        if (ctx.Scan.OptiScalerProxy != null) blockers.Add(Tx.Get("fd.block.opti"));
+        if (ctx.Scan.AddonFolder.Length > 0) blockers.Add(Tx.Get("fd.block.addonPath"));
         foreach (var name in new[] { "nvngx_dlss.dll", "nvngx_dlssnr.dll" })
         {
             var owner = ctx.State.OwnerOf(name);
-            if (owner != null && owner != Id && !(name == "nvngx_dlssnr.dll" && NrRules.CanTakeOverModel(owner))) blockers.Add($"{name} è gestito da «{ComponentCatalog.NameOf(owner)}»: una DLL può avere un solo gestore. Rimuovi «{ComponentCatalog.NameOf(owner)}» dalla sua scheda, poi installa Feeder.");
+            if (owner != null && owner != Id && !(name == "nvngx_dlssnr.dll" && NrRules.CanTakeOverModel(owner))) blockers.Add(Tx.Get("fd.block.dllOwner", name, ComponentCatalog.NameOf(owner)));
         }
     }
 
@@ -69,14 +70,14 @@ public sealed partial class FeederComponent : ComponentBase
     {
         var http = ctx.Services.Http;
         var vulkan = ctx.Api == GraphicsApi.Vulkan;
-        progress?.Report(new("Cerco l'ultima release stabile di Feeder…"));
+        progress?.Report(new(Tx.Get("fd.progress.release")));
         using var json = await http.GetJsonAsync(GitHub.LatestUrl(Repo), cancel, TimeSpan.FromMinutes(30));
         var release = GitHubRelease.Parse(json.RootElement);
-        if (!StableTag().IsMatch(release.Tag) || release.Draft || release.Prerelease) throw new HdlssException("Nessuna release stabile di Feeder.");
+        if (!StableTag().IsMatch(release.Tag) || release.Draft || release.Prerelease) throw new HdlssException(Tx.Get("fd.err.noRelease"));
         var assetName = $"DLSS5-Feeder-{release.Tag[1..]}.zip";
         var asset = release.Assets.SingleOrDefault(a => a.Name == assetName);
         if (asset == null || asset.Sha256 == null || !GitHubRelease.FromRepo(asset, Repo, release.Tag) || asset.Size > 16_000_000)
-            throw new HdlssException("Pacchetto Feeder non verificabile (origine, SHA-256 o dimensione).");
+            throw new HdlssException(Tx.Get("fd.err.unverifiable"));
 
         var temp = Path.Combine(ctx.Services.Paths.Temp, Guid.NewGuid().ToString("N"));
         try
@@ -84,10 +85,10 @@ public sealed partial class FeederComponent : ComponentBase
             var feederZip = await http.DownloadAsync(asset.Url, asset.Name, asset.Sha256, 16_000_000, progress, cancel);
             var wanted = new[] { FeedAddon, "reshade-shaders/Shaders/DLSS5_Feed.fx" }.Concat(vulkan ? new[] { "layer-x64/VkLayer_feed_vk.dll" } : Array.Empty<string>()).ToList();
             var got = Archives.Extract(feederZip, Path.Combine(temp, "feeder"), n => wanted.Contains(n), 16_000_000, 64_000_000);
-            if (wanted.Any(w => got.Count(g => g == w) != 1)) throw new HdlssException("Pacchetto Feeder incompleto.");
-            if (!PeFile.IsPe64(Path.Combine(temp, "feeder", FeedAddon))) throw new HdlssException("Feeder non x64.");
+            if (wanted.Any(w => got.Count(g => g == w) != 1)) throw new HdlssException(Tx.Get("fd.err.incomplete"));
+            if (!PeFile.IsPe64(Path.Combine(temp, "feeder", FeedAddon))) throw new HdlssException(Tx.Get("fd.err.notX64"));
 
-            progress?.Report(new("Scarico LumeniteFX e header ReShade (versioni fissate)…"));
+            progress?.Report(new(Tx.Get("fd.progress.lumenite")));
             var lumeniteZip = await http.DownloadAsync(LumeniteUrl, "lumenite.zip", LumeniteSha, 64_000_000, progress, cancel);
             var lumenite = Path.Combine(temp, "lumenite");
             var shaderFiles = Archives.Extract(lumeniteZip, lumenite, n =>
@@ -122,7 +123,7 @@ public sealed partial class FeederComponent : ComponentBase
             foreach (var (name, file) in headers) plan.AddFile($"{Prefix}/Shaders/{name}", file);
             plan.AddFile($"{Prefix}/Shaders/DLSS5_Feed.fx", Path.Combine(temp, "feeder", "reshade-shaders", "Shaders", "DLSS5_Feed.fx"));
             if (!shaderFiles.Any(f => f.EndsWith("/lumenite_Kernel.fx", StringComparison.OrdinalIgnoreCase)))
-                throw new HdlssException("LumeniteFX incompleto: manca lumenite_Kernel.fx.");
+                throw new HdlssException(Tx.Get("fd.err.lumenite"));
 
             var config = ctx.Scan.ReShadeConfig;
             plan.AddBytes(Preset, BuildPreset(ctx, plan, config), keepIfModified: true);
@@ -131,8 +132,8 @@ public sealed partial class FeederComponent : ComponentBase
             plan.IniSet(config, "GENERAL", "PresetPath", ".\\" + Preset);
             plan.IniListAdd(config, "ADDON", "LoadFromDllMain", RenoDxNrComponent.AddonName);
             plan.IniListAdd(config, "ADDON", "LoadFromDllMain", FeedAddon);
-            plan.Note("In gioco: verifica Generic Depth, poi LUMENITE: Kernel sopra DLSS 5 Feed. Disattiva MSAA/SSAA" + (vulkan ? " e NVIDIA Smooth Motion; avvia da HDLSS5." : "."));
-            plan.Note("Controlla dlss5-feed.log: «feature ready» e «frame delivered» indicano NR attivo.");
+            plan.Note(Tx.Get(vulkan ? "fd.note.ingameVk" : "fd.note.ingame"));
+            plan.Note(Tx.Get("fd.note.log"));
             return plan.Build();
         }
         finally
@@ -177,26 +178,26 @@ public sealed partial class FeederComponent : ComponentBase
     /// <summary>Latest signed release DLSS SR (nvngx_dlss.dll) from the DLSS Swapper manifest, MD5-verified.</summary>
     private static async Task<string> DownloadDlssSr(GameContext ctx, string temp, IProgress<OperationProgress>? progress, CancellationToken cancel)
     {
-        progress?.Report(new("Cerco DLSS Super Resolution nel catalogo DLSS Swapper…"));
+        progress?.Report(new(Tx.Get("fd.progress.dlss")));
         using var manifest = await ctx.Services.Http.GetJsonAsync(DlssManifest, cancel, TimeSpan.FromHours(12));
         var entry = manifest.RootElement.GetProperty("dlss").EnumerateArray()
             .Where(e => !e.GetProperty("is_dev_file").GetBoolean() && e.GetProperty("is_signature_valid").GetBoolean())
             .Select(e => (Version: Version.TryParse(e.GetProperty("version").GetString(), out var v) ? v : null, E: e))
             .Where(x => x.Version != null).OrderByDescending(x => x.Version).Select(x => x.E).FirstOrDefault();
-        if (entry.ValueKind == JsonValueKind.Undefined) throw new HdlssException("Catalogo DLSS vuoto.");
+        if (entry.ValueKind == JsonValueKind.Undefined) throw new HdlssException(Tx.Get("fd.err.catalogEmpty"));
         var url = entry.GetProperty("download_url").GetString()!;
         var uri = new Uri(url);
         if (uri.Scheme != "https" || uri.Host != "dlss-swapper-downloads.beeradmoore.com" || !uri.AbsolutePath.StartsWith("/dlss/"))
-            throw new HdlssException("Origine DLSS non valida nel catalogo.");
+            throw new HdlssException(Tx.Get("fd.err.dlssOrigin"));
         var zipMd5 = entry.GetProperty("zip_md5_hash").GetString()!;
         var dllMd5 = entry.GetProperty("md5_hash").GetString()!;
         var zip = await ctx.Services.Http.DownloadAsync(url, Path.GetFileName(uri.AbsolutePath), null, 200_000_000, progress, cancel);
-        if (!Md5(zip).Equals(zipMd5, StringComparison.OrdinalIgnoreCase)) throw new HdlssException("Archivio DLSS diverso dal catalogo.");
+        if (!Md5(zip).Equals(zipMd5, StringComparison.OrdinalIgnoreCase)) throw new HdlssException(Tx.Get("fd.err.dlssArchive"));
         var dir = Path.Combine(temp, "dlss");
         Archives.Extract(zip, dir, n => n.Equals("nvngx_dlss.dll", StringComparison.OrdinalIgnoreCase), 250_000_000);
         var dll = Path.Combine(dir, "nvngx_dlss.dll");
         if (!File.Exists(dll) || !Md5(dll).Equals(dllMd5, StringComparison.OrdinalIgnoreCase) || !PeFile.IsPe64(dll))
-            throw new HdlssException("nvngx_dlss.dll diverso dal catalogo.");
+            throw new HdlssException(Tx.Get("fd.err.dlssDll"));
         return dll;
     }
 

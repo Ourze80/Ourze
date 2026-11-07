@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using Hdlss.Core.IO;
 
 namespace Hdlss.Core.Transactions;
@@ -15,7 +16,7 @@ public static class Locations
         int slash = path.IndexOf('/');
         if (slash < 2) throw new UnsafePathException(path);
         var alias = path[1..slash];
-        if (roots == null || !roots.TryGetValue(alias, out var root)) throw new HdlssException($"Cartella «{alias}» non registrata per {path}.");
+        if (roots == null || !roots.TryGetValue(alias, out var root)) throw new HdlssException(Tx.Get("loc.alias", alias, path));
         return PathGuard.Resolve(root, path[(slash + 1)..]);
     }
 
@@ -38,10 +39,10 @@ public static class Locations
         var game = Path.GetFullPath(gameRoot);
         var full = Path.GetFullPath(root);
         string? baseDir = SameOrUnder(full, game) ? game : SameOrUnder(full, local) && !SameDir(full, local) ? local : null;
-        if (baseDir == null) throw new HdlssException($"Cartella non consentita per le modifiche: {full}");
+        if (baseDir == null) throw new HdlssException(Tx.Get("loc.notAllowed", full));
         for (var d = new DirectoryInfo(full); d != null && SameOrUnder(d.FullName, baseDir) && !SameDir(d.FullName, baseDir); d = d.Parent)
             if (d.Exists && (d.Attributes & FileAttributes.ReparsePoint) != 0)
-                throw new HdlssException($"Cartella collegata (junction/symlink) non supportata: {d.FullName}");
+                throw new HdlssException(Tx.Get("loc.junction", d.FullName));
     }
 
     private static bool SameDir(string a, string b) =>

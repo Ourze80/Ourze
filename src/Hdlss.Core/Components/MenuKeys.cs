@@ -1,5 +1,6 @@
 using System.Globalization;
 using Hdlss.Core.IO;
+using Hdlss.Core.Text;
 using Hdlss.Core.Transactions;
 
 namespace Hdlss.Core.Components;
@@ -16,10 +17,10 @@ public static class MenuKeys
     public const int OptiScalerDefault = 0x2D;  // Insert
 
     /// <summary>Keys offered in the drop-down (single keys that games rarely use).</summary>
-    public static readonly IReadOnlyList<(int Code, string Name)> Keys =
+    public static IReadOnlyList<(int Code, string Name)> Keys =>
     [
-        (0x24, "Home"), (0x2D, "Ins"), (0x23, "Fine"), (0x2E, "Canc"), (0x21, "Pag ↑"), (0x22, "Pag ↓"),
-        (0x13, "Pausa"), (0x91, "Bloc Scorr"),
+        (0x24, "Home"), (0x2D, "Ins"), (0x23, Tx.Get("menukey.end")), (0x2E, Tx.Get("menukey.del")), (0x21, Tx.Get("menukey.pgUp")), (0x22, Tx.Get("menukey.pgDown")),
+        (0x13, Tx.Get("menukey.pause")), (0x91, Tx.Get("menukey.scrollLock")),
         (0x70, "F1"), (0x71, "F2"), (0x72, "F3"), (0x73, "F4"), (0x74, "F5"), (0x75, "F6"),
         (0x76, "F7"), (0x77, "F8"), (0x78, "F9"), (0x79, "F10"), (0x7A, "F11"), (0x7B, "F12"),
     ];
@@ -27,8 +28,8 @@ public static class MenuKeys
     public static string NameOf(int code) => Keys.FirstOrDefault(k => k.Code == code).Name ?? $"0x{code:X2}";
 
     public static ComponentOption Option(int defaultCode) =>
-        new(OptionKey, "Tasto del menu",
-            [(Default, $"Predefinito ({NameOf(defaultCode)})"), .. Keys.Where(k => k.Code != defaultCode).Select(k => (Hex(k.Code), k.Name))],
+        new(OptionKey, Tx.Get("menukey.label"),
+            [(Default, Tx.Get("menukey.default", NameOf(defaultCode))), .. Keys.Where(k => k.Code != defaultCode).Select(k => (Hex(k.Code), k.Name))],
             Default);
 
     public static string Hex(int code) => $"0x{code:X2}";
@@ -73,5 +74,5 @@ public static class MenuKeys
     public static string ReShadeFormat(int code) => $"{code},0,0,0";
 
     public static string ConflictMessage(int code) =>
-        $"ReShade e OptiScaler userebbero lo stesso tasto ({NameOf(code)}) per aprire il menu: scegli un tasto diverso in «Tasto del menu».";
+        Tx.Get("menukey.conflict", NameOf(code));
 }

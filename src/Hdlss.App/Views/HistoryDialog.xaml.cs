@@ -30,9 +30,9 @@ public partial class HistoryDialog : Window
         var newer = _host.Services.Engine.Journals()
             .Where(j => string.Equals(j.Folder, _ctx.Folder, StringComparison.OrdinalIgnoreCase) && j.Status == JournalStatus.Completed && j.Time > journal.Time)
             .ToList();
-        if (newer.Count > 0 && !Dialogs.Confirm($"Ci sono {newer.Count} operazioni successive. Annullare solo questa può lasciare i componenti incoerenti. Continuare?"))
+        if (newer.Count > 0 && !Dialogs.Confirm(Loc.F("history.newer", newer.Count)))
             return;
-        if (!Dialogs.Confirm($"Annullare «{journal.Description}» del {journal.Time:g}?")) return;
+        if (!Dialogs.Confirm(Loc.F("history.confirm", journal.Description, journal.Time))) return;
         try
         {
             ComponentService.CheckGlobal(_ctx);

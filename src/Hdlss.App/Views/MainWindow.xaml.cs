@@ -34,7 +34,7 @@ public partial class MainWindow : Window
         {
             if (DataContext is MainViewModel { Busy: true })
             {
-                MessageBox.Show(this, "Attendi la fine dell'operazione in corso.", "HDLSS5");
+                MessageBox.Show(this, Loc.T("dlg.busy"), "HDLSS5");
                 e.Cancel = true;
                 return;
             }

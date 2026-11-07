@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using Hdlss.Core.IO;
 
 namespace Hdlss.Core.Transactions;
@@ -20,16 +21,16 @@ public static class RemovalPlanner
             if (FileHash.Equal(current, f.Before)) continue; // already back to original
             if (!FileHash.Equal(current, f.After) && !OnlyEditedByOthers(state, record.Id, f, full))
             {
-                if (f.KeepIfModified) { plan.Notes.Add($"{f.Path}: modificato dall'utente, conservato."); continue; }
+                if (f.KeepIfModified) { plan.Notes.Add(Tx.Get("plan.userModifiedKept", f.Path)); continue; }
                 if (current != null && record.Meta.ContainsKey(PlanBuilder.AdoptGameChangesMeta))
                 {
                     // The game's own DLL, replaced by a game update: that is already the game's file.
-                    plan.Notes.Add($"{f.Path}: sostituito dal gioco dopo l'ultima modifica, lasciato così com'è.");
+                    plan.Notes.Add(Tx.Get("rm.replacedByGame", f.Path));
                     continue;
                 }
                 if (!force)
-                    throw new ModifiedByOthersException($"{f.Path} è stato modificato da un altro programma dopo l'installazione.");
-                plan.Notes.Add($"{f.Path}: modificato da altro software, lasciato invariato.");
+                    throw new ModifiedByOthersException(Tx.Get("rm.modifiedByOthers", f.Path));
+                plan.Notes.Add(Tx.Get("rm.otherSoftware", f.Path));
                 continue;
             }
             plan.Files.Add(new FileOp { Path = f.Path, NewHash = f.Before, Expected = current, Attributes = f.Attributes, Release = true });
@@ -54,7 +55,7 @@ public static class RemovalPlanner
                         else doc.Set(e.Section, e.Key, e.Previous);
                         break;
                     default:
-                        plan.Notes.Add($"{e.File} [{e.Section}] {e.Key}: valore cambiato dall'utente, conservato.");
+                        plan.Notes.Add(Tx.Get("rm.iniUserChanged", e.File, e.Section, e.Key));
                         continue;
                 }
                 plan.IniEdits.Add(e);

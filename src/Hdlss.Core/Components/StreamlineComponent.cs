@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using Hdlss.Core.Text;
+using System.Diagnostics;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
 using Hdlss.Core.Diagnostics;
@@ -43,15 +44,15 @@ public sealed class StreamlineComponent : ComponentBase
         ["sl.interposer.dll", "sl.common.dll", "sl.dlss.dll", "sl.dlss_d.dll", "sl.dlss_g.dll", "sl.reflex.dll", "sl.pcl.dll", "sl.nis.dll", "sl.deepdvc.dll", "sl.directsr.dll", "sl.nvperf.dll"];
 
     public override string Id => ComponentId;
-    public override string Name => "DLL Streamline del gioco";
-    public override string Description => "Aggiorna le DLL NVIDIA Streamline (sl.*.dll) del gioco alla versione ufficiale più recente, o a quella scelta nella pagina DLL. Aggiorna solo i moduli che il gioco usa già. «Rimuovi» rimette gli originali.";
+    public override string Name => Tx.Get("sl.name");
+    public override string Description => Tx.Get("sl.desc");
     public override ComponentCategory Category => ComponentCategory.Upscaling;
     public override bool IsRelevant(GameContext ctx) => Folders(ctx).Count > 0;
 
     /// <summary>A Streamline folder; <see cref="Relative"/> is "" when the DLLs sit in the game root itself.</summary>
     public sealed record FolderState(string Relative, Version? Current, IReadOnlyList<string> Files)
     {
-        public string Display => Relative.Length == 0 ? "cartella principale del gioco" : Relative;
+        public string Display => Relative.Length == 0 ? Tx.Get("sl.display.root") : Relative;
         public string PathOf(string name) => PathGuard.Normalize(Relative.Length == 0 ? $"@root/{name}" : $"@root/{Relative}/{name}");
     }
 
@@ -122,20 +123,20 @@ public sealed class StreamlineComponent : ComponentBase
     protected override ComponentStatus? DetectExternal(GameContext ctx)
     {
         var folders = Folders(ctx);
-        return folders.Count == 0 ? null : new ComponentStatus(ComponentStatusKind.External, "Originali del gioco · Streamline " + string.Join(" · ", folders.Select(f => f.Current).Distinct()));
+        return folders.Count == 0 ? null : new ComponentStatus(ComponentStatusKind.External, Tx.Get("sl.status.originals", string.Join(" · ", folders.Select(f => f.Current).Distinct())));
     }
 
     protected override void CheckBlockers(GameContext ctx, List<string> blockers)
     {
-        if (Folders(ctx).Count == 0) blockers.Add("Streamline 2.x assente: il gioco non usa NVIDIA Streamline 2.x, quindi non c'è nulla da aggiornare.");
+        if (Folders(ctx).Count == 0) blockers.Add(Tx.Get("sl.block.absent"));
     }
 
     public override async Task<ChangePlan> PlanInstallAsync(GameContext ctx, IReadOnlyDictionary<string, string> options,
         IProgress<OperationProgress>? progress, CancellationToken cancel)
     {
-        progress?.Report(new("Controllo le versioni ufficiali di NVIDIA Streamline…"));
+        progress?.Report(new(Tx.Get("sl.progress.check")));
         var releases = await StreamlineCatalog.AllAsync(ctx.Services.Http, cancel);
-        if (releases.Count == 0) throw new HdlssException("Nessuna release Streamline ufficiale verificabile.");
+        if (releases.Count == 0) throw new HdlssException(Tx.Get("sl.err.noRelease"));
         var release = options.TryGetValue(VersionOption, out var tag) && releases.FirstOrDefault(r => r.Tag == tag) is { } chosen ? chosen : releases[0];
 
         var folders = Folders(ctx);
@@ -147,7 +148,7 @@ public sealed class StreamlineComponent : ComponentBase
         try
         {
             var zip = await ctx.Services.Http.DownloadAsync(release.Asset.Url, release.Asset.Name, release.Asset.Sha256, 1L << 30, progress, cancel);
-            progress?.Report(new("Estraggo e verifico le DLL di Streamline…"));
+            progress?.Report(new(Tx.Get("sl.progress.extract")));
             var sdk = Path.Combine(temp, "sdk");
             var extracted = Archives.Extract(zip, sdk, n => Regex.IsMatch(n, @"^(?:[^/]+/)?bin/x64/sl\.[a-z0-9_]+\.dll$", RegexOptions.IgnoreCase), 64L << 20, 1L << 30);
             var package = extracted.ToDictionary(p => Path.GetFileName(p), p => PathGuard.Resolve(sdk, p), StringComparer.OrdinalIgnoreCase);
@@ -165,16 +166,16 @@ public sealed class StreamlineComponent : ComponentBase
                     if (owned.Contains(rel)) continue;
                     if (!package.TryGetValue(name, out var source))
                     {
-                        plan.Note($"{folder.Display} › {name}: non presente nell'SDK {release.Tag}, lasciato com'è.");
+                        plan.Note(Tx.Get("sl.note.missing", folder.Display, name, release.Tag));
                         plan.Want(rel);
                         continue;
                     }
                     plan.AddFile(rel, source);
                     changed++;
                 }
-                plan.Note($"{folder.Display}: Streamline {folder.Current} → {release.Version} ({changed} moduli).");
+                plan.Note(Tx.Get("sl.note.folder", folder.Display, folder.Current, release.Version, changed));
             }
-            plan.Note("Fonte: SDK ufficiale NVIDIA Streamline (SHA-256 della release e firma NVIDIA verificati). La compatibilità dipende dal gioco: se qualcosa non va, «Ripristina originali».");
+            plan.Note(Tx.Get("sl.note.source"));
             return plan.Build();
         }
         finally { Releases.Cleanup(temp); }
@@ -183,21 +184,21 @@ public sealed class StreamlineComponent : ComponentBase
     /// <summary>Production NVIDIA module with the expected internal name, signature and SDK version.</summary>
     private static void Validate(string file, string name, Version sdk)
     {
-        if (!PeFile.IsPe64(file)) throw new HdlssException($"{name}: non è una DLL x64.");
+        if (!PeFile.IsPe64(file)) throw new HdlssException(Tx.Get("sl.err.notDll", name));
         var info = FileVersionInfo.GetVersionInfo(file);
         var expected = name.Equals("sl.dlss_d.dll", StringComparison.OrdinalIgnoreCase) ? "sl.dlss_rr" : Path.GetFileNameWithoutExtension(name);
         if (!string.Equals(info.InternalName, expected, StringComparison.OrdinalIgnoreCase)
             || (info.ProductName ?? "").IndexOf("STREAMLINE PRODUCTION", StringComparison.OrdinalIgnoreCase) < 0)
-            throw new HdlssException($"{name}: non è un modulo Streamline di produzione NVIDIA.");
+            throw new HdlssException(Tx.Get("sl.err.notProd", name));
         if (info.FileMajorPart != sdk.Major || info.FileMinorPart != sdk.Minor || info.FileBuildPart != sdk.Build)
-            throw new HdlssException($"{name}: versione {info.FileVersion} diversa dall'SDK {sdk}.");
+            throw new HdlssException(Tx.Get("sl.err.version", name, info.FileVersion, sdk));
         try
         {
 #pragma warning disable SYSLIB0057
             var signer = X509Certificate.CreateFromSignedFile(file);
 #pragma warning restore SYSLIB0057
-            if (!signer.Subject.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase)) throw new HdlssException($"{name}: firma non NVIDIA.");
+            if (!signer.Subject.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase)) throw new HdlssException(Tx.Get("sl.err.notNvidia", name));
         }
-        catch (System.Security.Cryptography.CryptographicException) { throw new HdlssException($"{name}: firma digitale mancante."); }
+        catch (System.Security.Cryptography.CryptographicException) { throw new HdlssException(Tx.Get("sl.err.noSig", name)); }
     }
 }

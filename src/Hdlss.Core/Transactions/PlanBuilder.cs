@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using Hdlss.Core.IO;
 using Hdlss.Core.Storage;
 
@@ -82,7 +83,7 @@ public sealed class PlanBuilder
         var current = FileHash.OfFileOrNull(full);
         var owner = _state.OwnerOf(relative);
         if (owner != null && !string.Equals(owner, _plan.ComponentId, StringComparison.OrdinalIgnoreCase))
-            throw new BlockedException($"{relative} è gestito dal componente «{owner}». Rimuovilo prima.");
+            throw new BlockedException(Tx.Get("plan.ownedBy", relative, owner));
         var prior = _existing?.FindFile(relative);
         bool newOriginal = false, adopted = false;
         if (prior != null && !FileHash.Equal(current, prior.After))
@@ -94,19 +95,19 @@ public sealed class PlanBuilder
             else if (AdoptGameChanges && current != null)
             {
                 newOriginal = true;
-                Note($"{relative}: sostituito dal gioco o da un altro programma dopo l'ultima modifica; questa versione diventa il nuovo originale da ripristinare.");
+                Note(Tx.Get("plan.replacedByGame", relative));
             }
-            else if (keepIfModified && builtOnCurrent) { Note($"{relative}: le tue modifiche restano, cambiate solo le impostazioni di HDLSS5."); }
-            else if (keepIfModified) { Note($"{relative}: modificato dall'utente, conservato."); return; }
+            else if (keepIfModified && builtOnCurrent) { Note(Tx.Get("plan.userChangesKept", relative)); }
+            else if (keepIfModified) { Note(Tx.Get("plan.userModifiedKept", relative)); return; }
             else if (current != null && sameKind != null && sameKind(full))
             {
                 // Recorded again even when it already is the new build, so the installed version is right.
                 adopted = true;
                 Note(FileHash.Equal(current, hash)
-                    ? $"{relative}: un altro programma l'aveva già portato a questa versione; HDLSS5 lo riprende in gestione."
-                    : $"{relative}: un altro programma l'aveva sostituito con un'altra versione dello stesso componente; viene aggiornato (backup della versione attuale).");
+                    ? Tx.Get("plan.adoptedSame", relative)
+                    : Tx.Get("plan.adoptedOther", relative));
             }
-            else throw new BlockedException($"{relative} è stato modificato da un'altra app dopo l'installazione. Rimuovi il componente o verifica i file del gioco.");
+            else throw new BlockedException(Tx.Get("plan.modifiedByOtherApp", relative));
         }
         if (FileHash.Equal(current, hash) && prior != null && !newOriginal && !adopted) return; // already up to date
         _plan.Files.Add(new FileOp { Path = relative, NewHash = hash, Expected = current, KeepIfModified = keepIfModified, NewOriginal = newOriginal });

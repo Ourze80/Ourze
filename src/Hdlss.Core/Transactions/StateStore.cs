@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using Hdlss.Core.IO;
 using Hdlss.Core.Storage;
 
@@ -14,7 +15,7 @@ public sealed class StateStore(string root)
         var state = JsonFile.Read<GameState>(FileFor(folder));
         if (state == null) return new GameState { GameId = gameId, Folder = Path.GetFullPath(folder) };
         if (state.Schema != 2 || !string.Equals(Path.GetFullPath(state.Folder), Path.GetFullPath(folder), StringComparison.OrdinalIgnoreCase))
-            throw new HdlssException("Registro dello stato non valido per questa cartella.");
+            throw new HdlssException(Tx.Get("state.invalid"));
         state.Components = new Dictionary<string, ComponentRecord>(state.Components, StringComparer.OrdinalIgnoreCase);
         return state;
     }

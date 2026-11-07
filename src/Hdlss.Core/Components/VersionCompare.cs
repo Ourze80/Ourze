@@ -73,6 +73,10 @@ public static partial class VersionCompare
         return dev;
     }
 
+    /// <summary>The label for display: the stored markers "importato" / "da 1.x" in the current language.</summary>
+    public static string Display(string? label) =>
+        (label ?? "").Replace("importato", Hdlss.Core.Text.Tx.Get("ver.imported")).Replace("da 1.x", Hdlss.Core.Text.Tx.Get("ver.from1x"));
+
     private static string Text(string label) =>
         string.Concat(Numbers().Replace(label, " ").Split([' ', '·', 'v', 'V'], StringSplitOptions.RemoveEmptyEntries));
 

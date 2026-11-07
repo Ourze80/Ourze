@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using System.Text.RegularExpressions;
 using Hdlss.Core.IO;
 
@@ -16,7 +17,7 @@ public static class Verifier
     public static VerifyResult Check(GameContext ctx)
     {
         var path = NrAdvisor.Installed(ctx);
-        if (path == null) return new(VerifyLevel.NotRun, "Neural Rendering non è installato su questo gioco.", []);
+        if (path == null) return new(VerifyLevel.NotRun, Tx.Get("ver.notInstalled"), []);
         var record = ctx.State.Get(NrAdvisor.Components[path.Value].Last())!;
         var since = record.UpdatedAt.AddMinutes(-1);
         var details = new List<string>();
@@ -25,9 +26,9 @@ public static class Verifier
         var crash = ExecutableDetectorFiles(ctx.Folder, "*crash*.log").Select(f => new FileInfo(f))
             .Where(f => f.LastWriteTime >= since).OrderByDescending(f => f.LastWriteTime).FirstOrDefault();
         if (crash != null)
-            return new(VerifyLevel.Failed, "No: il gioco è andato in crash con il componente attivo.",
-                [$"Rapporto: {crash.Name} ({crash.LastWriteTime:g}).",
-                 path == NrPath.Native ? "Prova «Disattiva» e poi il percorso Feeder (Avanzate), oppure aggiorna il driver NVIDIA." : "Prova «Disattiva»: il gioco tornerà com'era. Puoi riprovare con un altro percorso in Avanzate."]);
+            return new(VerifyLevel.Failed, Tx.Get("ver.crash"),
+                [Tx.Get("ver.crashReport", crash.Name, crash.LastWriteTime),
+                 path == NrPath.Native ? Tx.Get("ver.crashNative") : Tx.Get("ver.crashOther")]);
 
         var logs = new List<(string Name, string[] Lines)>();
         foreach (var name in LogNames(ctx, path.Value))
@@ -37,8 +38,8 @@ public static class Verifier
             logs.Add((name, ReadShared(file)));
         }
         if (logs.Count == 0)
-            return new(VerifyLevel.NotRun, "Non hai ancora giocato dopo l'installazione.",
-                ["Avvia il gioco, entra in una scena giocabile per almeno un minuto, chiudilo e premi di nuovo «Ha funzionato?»."]);
+            return new(VerifyLevel.NotRun, Tx.Get("ver.notPlayed"),
+                [Tx.Get("ver.notPlayedHint")]);
 
         bool loaded = false, ran = false, failed = false;
         foreach (var (name, lines) in logs)
@@ -55,21 +56,21 @@ public static class Verifier
             }
         }
 
-        if (ran && !failed) return new(VerifyLevel.Working, "Sì: il Neural Rendering è partito.", ["Se l'immagine non cambia, attivalo nel menu ReShade (tasto Home) nella scheda dell'add-on."]);
+        if (ran && !failed) return new(VerifyLevel.Working, Tx.Get("ver.ok"), [Tx.Get("ver.okHint")]);
         if (failed)
         {
-            details.Insert(0, "Il log riporta un errore del componente:");
+            details.Insert(0, Tx.Get("ver.logError"));
             details.Add(path == NrPath.Native
-                ? "Prova il percorso Feeder oppure aggiorna il driver NVIDIA. Se il gioco crasha, usa «Disattiva»."
-                : "Verifica in ReShade che «Generic Depth» trovi la profondità e che Kernel sia sopra DLSS 5 Feed.");
-            return new(VerifyLevel.Failed, "No: il componente si è caricato ma ha dato errore.", details);
+                ? Tx.Get("ver.errNative")
+                : Tx.Get("ver.errOther"));
+            return new(VerifyLevel.Failed, Tx.Get("ver.loadedErr"), details);
         }
-        if (loaded) return new(VerifyLevel.Partial, "Quasi: l'add-on è stato caricato, ma non risulta che il modello abbia elaborato fotogrammi.",
-            ["Apri il menu ReShade (Home), attiva Neural Rendering nella scheda dell'add-on e gioca qualche minuto.",
-             path == NrPath.Feeder ? "Con Feeder controlla anche che gli effetti LUMENITE Kernel e DLSS 5 Feed siano attivi." : "Assicurati che DLSS sia attivo nelle opzioni grafiche del gioco."]);
-        return new(VerifyLevel.Failed, "No: il gioco è partito ma il componente non è stato caricato.",
-            ["ReShade potrebbe non essersi avviato: controlla che il menu ReShade compaia premendo Home.",
-             "Se usi un overlay o un'altra mod che sostituisce dxgi.dll, possono entrare in conflitto."]);
+        if (loaded) return new(VerifyLevel.Partial, Tx.Get("ver.partial"),
+            [Tx.Get("ver.partialHint1"),
+             path == NrPath.Feeder ? Tx.Get("ver.partialFeeder") : Tx.Get("ver.partialNative")]);
+        return new(VerifyLevel.Failed, Tx.Get("ver.notLoaded"),
+            [Tx.Get("ver.notLoadedHint1"),
+             Tx.Get("ver.notLoadedHint2")]);
     }
 
     private static string[] ExecutableDetectorFiles(string dir, string pattern) => Games.ExecutableDetector.SafeFiles(dir, pattern);

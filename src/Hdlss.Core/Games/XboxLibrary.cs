@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -125,7 +126,7 @@ public static partial class XboxLibrary
             Cover = BestCover(root, shell, visual),
             Hero = Asset(root, Attr(shell, "SplashScreenImage")),
             ProtectedReason = root.Split('\\').Any(x => x.Equals("WindowsApps", StringComparison.OrdinalIgnoreCase))
-                ? "Installazione WindowsApps protetta: avvio disponibile, mod non installabili. Nell'app Xbox usa «Gestisci» per spostarla in una cartella modificabile."
+                ? Tx.Get("xbox.protected")
                 : null,
         };
     }
@@ -133,7 +134,7 @@ public static partial class XboxLibrary
     public static string LaunchArgument(Game game)
     {
         if (!LaunchIdPattern().IsMatch(game.LaunchId ?? ""))
-            throw new HdlssException("Avvio Xbox non disponibile per questo gioco: aprilo dall'app Xbox.");
+            throw new HdlssException(Tx.Get("xbox.noLaunch"));
         return @"shell:AppsFolder\" + game.LaunchId;
     }
 

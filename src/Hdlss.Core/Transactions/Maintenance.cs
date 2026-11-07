@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using Hdlss.Core.Diagnostics;
 using Hdlss.Core.Storage;
 
@@ -6,7 +7,7 @@ namespace Hdlss.Core.Transactions;
 public sealed record MaintenanceReport(int JournalsRemoved, int BlobsRemoved, long BytesFreed, long StoreBytes)
 {
     public override string ToString() =>
-        $"Journal rimossi: {JournalsRemoved} · copie liberate: {BlobsRemoved} ({BytesFreed / 1048576.0:N0} MB) · archivio: {StoreBytes / 1048576.0:N0} MB";
+        Tx.Get("maint.report", JournalsRemoved, BlobsRemoved, BytesFreed / 1048576.0, StoreBytes / 1048576.0);
 }
 
 /// <summary>

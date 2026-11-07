@@ -132,19 +132,19 @@ public sealed partial class MainViewModel : ObservableObject
     private async Task RefreshAsync()
     {
         Scanning = true;
-        Status = "Cerco i giochi installati…";
+        Status = Loc.T("lib.scanning");
         try
         {
             var games = await Task.Run(() => Host.Library.Scan());
             Games.Clear();
             foreach (var g in games) Games.Add(new GameItemViewModel(g));
-            Status = $"{games.Count} giochi trovati";
+            Status = Loc.F(games.Count == 1 ? "lib.found.one" : "lib.found.many", games.Count);
             _ = ComputeSummariesAsync();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or HdlssException)
         {
             Host.Log.Error("Scansione libreria", ex);
-            Status = "Scansione non riuscita: " + ex.Message;
+            Status = Loc.F("lib.scanFailed", ex.Message);
         }
         finally { Scanning = false; }
     }
@@ -179,7 +179,7 @@ public sealed partial class MainViewModel : ObservableObject
     public void UpdateLibrarySummary()
     {
         int active = Games.Count(g => g.IsActive), attention = Games.Count(g => g.NeedsAttention);
-        LibrarySummary = $"{Games.Count} giochi · {active} con Neural Rendering" + (attention > 0 ? $" · {attention} da sistemare" : "");
+        LibrarySummary = Loc.F(Games.Count == 1 ? "lib.summary.one" : "lib.summary.many", Games.Count, active) + (attention > 0 ? Loc.F("lib.summary.attn", attention) : "");
     }
 
     [RelayCommand]
@@ -204,7 +204,21 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task OpenSettingsAsync()
     {
-        if (Dialogs.Settings(this)) await RefreshAsync();
+        var before = Loc.Instance.Language;
+        if (!Dialogs.Settings(this)) return;
+        await RefreshAsync();
+        if (Loc.Instance.Language != before) await ReloadForLanguageAsync();
+    }
+
+    /// <summary>
+    /// Core builds its texts (blockers, warnings, statuses, plan notes) when a page loads, so after a
+    /// language change the open pages are rebuilt in the new language.
+    /// </summary>
+    private async Task ReloadForLanguageAsync()
+    {
+        Status = Loc.T("status.ready");
+        if (Page == Page.Game && Detail != null) await Detail.ReloadAsync();
+        await DlssPage.OnLanguageChangedAsync();
     }
 
     [RelayCommand]
@@ -241,21 +255,21 @@ public sealed partial class MainViewModel : ObservableObject
         }
         catch (OperationCanceledException)
         {
-            Status = "Operazione annullata.";
+            Status = Loc.T("op.cancelled");
             return false;
         }
         catch (HdlssException ex)
         {
             Host.Log.Warn($"{title}: {ex.Message}");
             Status = ex.Message.Split('\n')[0];
-            Dialogs.Error(ex.Message, ex is BlockedException ? "Operazione non possibile" : "Errore");
+            Dialogs.Error(ex.Message, ex is BlockedException ? Loc.T("dlg.blocked") : Loc.T("dlg.error"));
             return false;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or HttpRequestException)
         {
             Host.Log.Error(title, ex);
             Status = ex.Message;
-            Dialogs.Error($"{ex.Message}\n\nDettagli nel registro attività.");
+            Dialogs.Error($"{ex.Message}\n\n{Loc.T("dlg.details")}");
             return false;
         }
         finally

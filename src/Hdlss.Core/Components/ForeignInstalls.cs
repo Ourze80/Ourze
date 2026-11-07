@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Hdlss.Core.Games;
@@ -56,10 +57,10 @@ public static partial class ForeignInstalls
                 .ToList();
             if (files.Count == 0) continue;
             foreach (var f in files) claimed.Add(f);
-            var source = files.Any(autopilot.Contains) ? "DLSS 5 Autopilot"
-                : Directory.Exists(Path.Combine(ctx.Game.Root, "_DLSS5_Backup")) && id != ReShadeComponent.ComponentId ? "un installer DLSS 5"
-                : id == ReShadeComponent.ComponentId ? "l'installer di ReShade o un altro programma"
-                : "un altro programma o a mano";
+            var source = files.Any(autopilot.Contains) ? Tx.Get("imp.src.autopilot")
+                : Directory.Exists(Path.Combine(ctx.Game.Root, "_DLSS5_Backup")) && id != ReShadeComponent.ComponentId ? Tx.Get("imp.src.installer")
+                : id == ReShadeComponent.ComponentId ? Tx.Get("imp.src.reshade")
+                : Tx.Get("imp.src.other");
             result.Add(new ForeignInstall(id, ComponentCatalog.NameOf(id), source,
                 files.Select(f => new ForeignFile(f, FindBackup(ctx, f), f.EndsWith(".ini", StringComparison.OrdinalIgnoreCase))).ToList()));
         }
@@ -75,7 +76,7 @@ public static partial class ForeignInstalls
         foreach (var f in legacyFiles) accounted.Add(PathGuard.Normalize(f));
         var list = new List<UnknownInjector>();
         foreach (var addon in ctx.Scan.Addons.Where(a => !accounted.Contains(a)))
-            list.Add(new UnknownInjector(addon, "add-on ReShade di un altro programma"));
+            list.Add(new UnknownInjector(addon, Tx.Get("imp.unk.addon")));
         foreach (var name in FolderScan.ProxyNames.Concat(["dinput8.dll", "d3d11.dll", "d3d9.dll", "opengl32.dll", "dwmapi.dll", "nvngx.dll"]).Distinct())
         {
             if (accounted.Contains(name)) continue;
@@ -83,7 +84,7 @@ public static partial class ForeignInstalls
             if (!File.Exists(full)) continue;
             var id = PeFile.Identity(full);
             if (id.Contains("Microsoft", StringComparison.OrdinalIgnoreCase) && !id.Contains("ReShade", StringComparison.OrdinalIgnoreCase)) continue;
-            list.Add(new UnknownInjector(name, id.Length > 0 ? $"DLL proxy · {id}" : "DLL proxy sconosciuta"));
+            list.Add(new UnknownInjector(name, id.Length > 0 ? Tx.Get("imp.unk.proxyId", id) : Tx.Get("imp.unk.proxy")));
         }
         foreach (var file in ExecutableDetector.SafeFiles(ctx.Folder, "dlss-enabler*.dll"))
             list.Add(new UnknownInjector(Path.GetFileName(file), "DLSS Enabler"));
@@ -106,16 +107,16 @@ public static partial class ForeignInstalls
             string? before = null;
             if (f.Backup != null && File.Exists(f.Backup) && new FileInfo(f.Backup).Length > 0) before = ctx.Services.Store.Put(f.Backup);
             record.Files.Add(new FileRecord { Path = f.Path, Before = before, After = FileHash.OfFile(full), KeepIfModified = f.KeepIfModified });
-            notes.Add(before != null ? $"{f.Path}: alla rimozione torna l'originale trovato nel backup di {install.Source}."
-                : f.KeepIfModified ? $"{f.Path}: configurazione; alla rimozione viene tolta solo se non l'hai modificata."
-                : $"{f.Path}: aggiunto da {install.Source}; alla rimozione viene eliminato.");
+            notes.Add(before != null ? Tx.Get("imp.noteBackup", f.Path, install.Source)
+                : f.KeepIfModified ? Tx.Get("imp.noteConfig", f.Path)
+                : Tx.Get("imp.noteAdded", f.Path, install.Source));
         }
         var plan = new ChangePlan
         {
             GameId = ctx.Game.Id, GameName = ctx.Game.Name, Folder = ctx.Folder, ComponentId = install.ComponentId,
             ComponentName = install.ComponentName + " · importazione", Version = record.Version, StateStamp = ctx.StateStamp, Adopt = record,
         };
-        plan.Notes.Add($"Installato da {install.Source}. HDLSS5 prende in gestione {install.Files.Count} file: nessun file del gioco viene modificato.");
+        plan.Notes.Add(Tx.Get("imp.noteMain", install.Source, install.Files.Count));
         plan.Notes.AddRange(notes);
         return plan;
     }

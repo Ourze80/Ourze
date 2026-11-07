@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using System.Text.RegularExpressions;
 using Hdlss.Core.Diagnostics;
 using Hdlss.Core.Games;
@@ -15,7 +16,7 @@ public sealed partial class ReShadeComponent : ComponentBase
     public const string ComponentId = "reshade";
     public override string Id => ComponentId;
     public override string Name => "ReShade (add-on)";
-    public override string Description => "Caricatore per gli add-on RenoDX NR e Feeder. Versione stabile ufficiale con supporto completo agli add-on.";
+    public override string Description => Tx.Get("rs.desc");
     public override IReadOnlyList<ComponentOption> Options => [MenuKeys.Option(MenuKeys.ReShadeDefault)];
 
     [GeneratedRegex(@"ReShade_Setup_(\d+\.\d+\.\d+)_Addon\.exe")] private static partial Regex SetupName();
@@ -24,23 +25,23 @@ public sealed partial class ReShadeComponent : ComponentBase
     {
         0 => null,
         1 => new ComponentStatus(ComponentStatusKind.External,
-            $"Installato da altro software ({ctx.Scan.ReShadeLoaders[0]}){(ctx.Scan.ReShadeSupportsAddons ? "" : " · senza supporto add-on")}"),
-        _ => new ComponentStatus(ComponentStatusKind.Blocked, "Più copie di ReShade: " + string.Join(", ", ctx.Scan.ReShadeLoaders)),
+            Tx.Get(ctx.Scan.ReShadeSupportsAddons ? "rs.status.external" : "rs.status.noAddons", ctx.Scan.ReShadeLoaders[0])),
+        _ => new ComponentStatus(ComponentStatusKind.Blocked, Tx.Get("rs.status.many", string.Join(", ", ctx.Scan.ReShadeLoaders))),
     };
 
     protected override void CheckBlockers(GameContext ctx, List<string> blockers)
     {
         var managed = ctx.State.Get(Id);
         var foreign = ctx.Scan.ReShadeLoaders.Where(l => managed?.FindFile(l) == null).ToList();
-        if (foreign.Count > 0) blockers.Add($"ReShade di un altro programma ({string.Join(", ", foreign)}): HDLSS5 non lo gestisce ancora. Usa «Importa in HDLSS5» per gestirlo da qui.");
-        if (ctx.Api == GraphicsApi.Unknown) blockers.Add("API grafica non riconosciuta: HDLSS5 non ha capito se il gioco usa DX11, DX12 o Vulkan. Impostala in «Eseguibile e API».");
+        if (foreign.Count > 0) blockers.Add(Tx.Get("rs.block.foreign", string.Join(", ", foreign)));
+        if (ctx.Api == GraphicsApi.Unknown) blockers.Add(Tx.Get("rs.block.api"));
     }
 
     public override async Task<ChangePlan> PlanInstallAsync(GameContext ctx, IReadOnlyDictionary<string, string> options,
         IProgress<OperationProgress>? progress, CancellationToken cancel)
     {
-        progress?.Report(new("Controllo la versione stabile su reshade.me…"));
-        var version = await StableVersionAsync(ctx, cancel) ?? throw new HdlssException("Versione ReShade con add-on non identificabile su reshade.me.");
+        progress?.Report(new(Tx.Get("rs.progress.check")));
+        var version = await StableVersionAsync(ctx, cancel) ?? throw new HdlssException(Tx.Get("rs.err.version"));
         var url = $"https://reshade.me/downloads/ReShade_Setup_{version}_Addon.exe";
         var setup = await ctx.Services.Http.DownloadAsync(url, $"ReShade_Setup_{version}_Addon.exe", null, 100L << 20, progress, cancel);
 
@@ -51,7 +52,7 @@ public sealed partial class ReShadeComponent : ComponentBase
                 Archives.ExtractZip(zip, temp, n => n == "ReShade64.dll", 80L << 20, 80L << 20);
             var dll = Path.Combine(temp, "ReShade64.dll");
             if (!FolderScan.IsReShade(dll) || !PeFile.ContainsAscii(dll, "ReShadeRegisterAddon"))
-                throw new HdlssException("La DLL estratta non è ReShade x64 con supporto add-on.");
+                throw new HdlssException(Tx.Get("rs.err.dll"));
             return PlanFor(ctx, dll, version, url, Option(options, MenuKeys.OptionKey));
         }
         finally
@@ -76,9 +77,9 @@ public sealed partial class ReShadeComponent : ComponentBase
     /// </summary>
     public ChangePlan PlanRelocate(GameContext ctx)
     {
-        var record = ctx.State.Get(Id) ?? throw new HdlssException("ReShade non è gestito da HDLSS5 in questo gioco.");
+        var record = ctx.State.Get(Id) ?? throw new HdlssException(Tx.Get("rs.err.notManaged"));
         var loader = record.Files.FirstOrDefault(f => f.Path.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-                     ?? throw new HdlssException("Registro di ReShade senza DLL.");
+                     ?? throw new HdlssException(Tx.Get("rs.err.noDll"));
         var dll = ctx.Services.Store.Open(loader.After);
         return PlanFor(ctx, dll, record.Version, record.Meta.GetValueOrDefault("source", ""), record.Meta.GetValueOrDefault(MenuKeys.OptionKey, MenuKeys.Default));
     }
@@ -93,7 +94,7 @@ public sealed partial class ReShadeComponent : ComponentBase
     {
         {
             if (ctx.Api != GraphicsApi.Vulkan && ctx.Scan.OptiScalerProxies.Count > 1)
-                throw new BlockedException("Più copie di OptiScaler nella cartella: sistema prima OptiScaler.");
+                throw new BlockedException(Tx.Get("rs.err.manyOpti"));
             var key = MenuKeys.Parse(menuKey) ?? MenuKeys.ReShadeKey(ctx);
             if (ctx.Api != GraphicsApi.Vulkan && ctx.Scan.OptiScalerProxy != null && key == MenuKeys.OptiScalerKey(ctx))
                 throw new BlockedException(MenuKeys.ConflictMessage(key));
@@ -106,19 +107,19 @@ public sealed partial class ReShadeComponent : ComponentBase
                 plan.AddFile(Vulkan.ReShadeDll, dll);
                 plan.AddBytes(Vulkan.ReShadeJson, Vulkan.LayerManifest(Vulkan.ReShadeLayer, "ReShade64.dll", reshade: true));
                 plan.IniSetIfMissing("ReShade.ini", "ADDON", "AddonPath", ".\\");
-                plan.Note("Vulkan: avvia il gioco con il pulsante «Avvia» di HDLSS5 per caricare il layer.");
+                plan.Note(Tx.Get("rs.note.vulkan"));
             }
             else if (ctx.Scan.OptiScalerProxy != null)
             {
                 plan.AddFile("ReShade64.dll", dll);
                 plan.IniSet("OptiScaler.ini", "Plugins", "LoadReshade", "true");
-                plan.Note($"ReShade viene caricato da OptiScaler ({ctx.Scan.OptiScalerProxy} → ReShade64.dll): nessun doppio caricamento.");
+                plan.Note(Tx.Get("rs.note.opti", ctx.Scan.OptiScalerProxy));
             }
             else
             {
                 var target = ctx.State.Get(Id)?.Files.Select(f => f.Path).FirstOrDefault(p => FolderScan.ProxyNames.Contains(p, StringComparer.OrdinalIgnoreCase)) ?? "dxgi.dll";
                 var full = plan.Full(target);
-                if (File.Exists(full) && !FolderScan.IsReShade(full)) throw new BlockedException($"{target} appartiene a un altro componente: nessuna sovrascrittura.");
+                if (File.Exists(full) && !FolderScan.IsReShade(full)) throw new BlockedException(Tx.Get("rs.err.otherOwner", target));
                 plan.AddFile(target, dll);
             }
             return plan.Build();

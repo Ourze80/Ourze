@@ -14,8 +14,8 @@ public static class RemovalFlow
         try { return await Task.Run(() => host.Components.PlanRemoval(ctx, componentId, false), cancel); }
         catch (ModifiedByOthersException ex)
         {
-            var text = ex.Message + "\n\n«Rimuovi comunque» lascia questo file così com'è e rimuove tutto il resto installato da HDLSS5.";
-            var accepted = Application.Current.Dispatcher.Invoke(() => Dialogs.Choose("Rimozione bloccata", text, "Rimuovi comunque"));
+            var text = ex.Message + Loc.T("removal.note");
+            var accepted = Application.Current.Dispatcher.Invoke(() => Dialogs.Choose(Loc.T("removal.blocked"), text, Loc.T("removal.anyway")));
             if (!accepted) throw new OperationCanceledException();
             return await Task.Run(() => host.Components.PlanRemoval(ctx, componentId, true), cancel);
         }

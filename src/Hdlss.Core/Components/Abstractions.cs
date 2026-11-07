@@ -4,6 +4,7 @@ using Hdlss.Core.Hardware;
 using Hdlss.Core.Net;
 using Hdlss.Core.Settings;
 using Hdlss.Core.Storage;
+using Hdlss.Core.Text;
 using Hdlss.Core.Transactions;
 
 namespace Hdlss.Core.Components;
@@ -12,7 +13,7 @@ public enum ComponentStatusKind { NotInstalled, Installed, External, Blocked }
 
 public sealed record ComponentStatus(ComponentStatusKind Kind, string Detail, string? Version = null)
 {
-    public static ComponentStatus Missing(string detail = "Non installato") => new(ComponentStatusKind.NotInstalled, detail);
+    public static ComponentStatus Missing(string? detail = null) => new(ComponentStatusKind.NotInstalled, detail ?? Tx.Get("status.notInstalled"));
 }
 
 public enum ComponentCategory { NeuralRendering, Upscaling, Hdr, Shaders, FrameGeneration, Loaders }
@@ -37,7 +38,7 @@ public sealed record OptionRange(int Min, int Max, string Unit)
     }
 
     public string Label(string value) => $"{value} {Unit}";
-    public string Hint => $"Scrivi un numero da {Min} a {Max}";
+    public string Hint => Tx.Get("opt.range.hint", Min, Max);
 }
 
 /// <summary>Shared services handed to components (no static singletons, unlike 1.x).</summary>
@@ -70,7 +71,7 @@ public sealed class GameContext
 
     public GameContext(Game game, Services services, GpuInfo gpu)
     {
-        if (!game.HasExe) throw new BlockedException("Seleziona prima l'eseguibile del gioco.");
+        if (!game.HasExe) throw new BlockedException(Tx.Get("ctx.noExe"));
         Game = game;
         Services = services;
         Gpu = gpu;
@@ -155,7 +156,7 @@ public abstract class ComponentBase : IComponent
     {
         var record = ctx.State.Get(Id);
         return record != null
-            ? new ComponentStatus(ComponentStatusKind.Installed, $"Installato · {record.Version} · {record.UpdatedAt:d}", record.Version)
+            ? new ComponentStatus(ComponentStatusKind.Installed, Tx.Get("status.installed", record.Version, record.UpdatedAt), record.Version)
             : DetectExternal(ctx) ?? ComponentStatus.Missing();
     }
 
@@ -166,7 +167,7 @@ public abstract class ComponentBase : IComponent
     {
         var list = new List<string>();
         foreach (var req in Requires.Where(r => !ctx.Installed(r)))
-            list.Add($"Manca {ComponentCatalog.NameOf(req)}: questo componente ne ha bisogno per funzionare. Installalo prima dalla sua scheda.");
+            list.Add(Tx.Get("comp.requires", ComponentCatalog.NameOf(req)));
         CheckBlockers(ctx, list);
         return list;
     }

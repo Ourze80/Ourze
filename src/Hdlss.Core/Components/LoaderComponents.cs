@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using System.Text.RegularExpressions;
 using Hdlss.Core.Diagnostics;
 using Hdlss.Core.Games;
@@ -18,22 +19,22 @@ public sealed class MfgUnlockComponent : ComponentBase
     public override Task<string?> LatestVersionAsync(GameContext ctx, IReadOnlyDictionary<string, string> options, CancellationToken cancel) =>
         Releases.LatestTagAsync(ctx, Repo, cancel);
     public override string Name => "MFG Unlock (RTX 4000)";
-    public override string Description => "Sblocca la generazione multi-fotogramma su RTX 4000 nei giochi con DLSS Frame Generation nativo. Attiva FG nel gioco e scegli il moltiplicatore in ReShade › MFG Unlock. Dipende da gioco, driver e versione DLSS-G.";
+    public override string Description => Tx.Get("mfg.desc");
     public override ComponentCategory Category => ComponentCategory.FrameGeneration;
     public override bool NeedsReShade => true;
 
     protected override ComponentStatus? DetectExternal(GameContext ctx) =>
-        ReShadeAddons.ForeignAddons(ctx, "^renodx-mfgunlock\\.addon64$").Any() ? new ComponentStatus(ComponentStatusKind.External, $"{AddonName} · installato da altro software") : null;
+        ReShadeAddons.ForeignAddons(ctx, "^renodx-mfgunlock\\.addon64$").Any() ? new ComponentStatus(ComponentStatusKind.External, Tx.Get("hdr.status.external", AddonName)) : null;
 
     protected override void CheckBlockers(GameContext ctx, List<string> blockers)
     {
         ReShadeAddons.RequireAddonSupport(ctx, blockers);
-        if (ctx.Gpu.Series == 50) blockers.Add("Mod non necessaria: le RTX 5000 hanno già MFG in modo nativo. Non c'è nulla da installare.");
-        else if (ctx.Gpu.Series != 40) blockers.Add("Serve una GPU RTX 4000: questa mod aggiunge MFG alle RTX 4000 e non funziona con altre schede. Non è disponibile su questo PC.");
+        if (ctx.Gpu.Series == 50) blockers.Add(Tx.Get("mfg.block.notNeeded"));
+        else if (ctx.Gpu.Series != 40) blockers.Add(Tx.Get("mfg.block.needGpu"));
         var others = ReShadeAddons.ForeignAddons(ctx, "mfg|framegen").Where(a => !Path.GetFileName(a).Equals(AddonName, StringComparison.OrdinalIgnoreCase)).ToList();
-        if (others.Count > 0) blockers.Add($"Altro add-on MFG presente: due add-on MFG insieme si disturbano ({string.Join(", ", others)}). Rimuovi quello dell'altro programma.");
+        if (others.Count > 0) blockers.Add(Tx.Get("mfg.block.other", string.Join(", ", others)));
         if (!HasFrameGeneration(ctx))
-            blockers.Add("DLSS Frame Generation assente nel gioco: la mod ne ha bisogno e non trova nvngx_dlssg.dll né sl.dlss_g.dll. Serve un gioco che la supporti.");
+            blockers.Add(Tx.Get("mfg.block.noFg"));
     }
 
     /// <summary>
@@ -49,12 +50,12 @@ public sealed class MfgUnlockComponent : ComponentBase
         IProgress<OperationProgress>? progress, CancellationToken cancel)
     {
         var (release, asset, file) = await Releases.LatestAsset(ctx, Repo, a => a.Name == AddonName, 32_000_000, requireDigest: true, progress, cancel);
-        if (!PeFile.IsPe64(file) || asset.Size < 4096) throw new HdlssException("MFG Unlock: add-on non valido.");
+        if (!PeFile.IsPe64(file) || asset.Size < 4096) throw new HdlssException(Tx.Get("mfg.err.invalid"));
         var plan = ctx.NewPlan(this, release.Tag);
         plan.Meta("source", asset.Url);
         plan.AddFile(ReShadeAddons.AddonTarget(ctx, AddonName), file);
         plan.IniListAdd(ctx.Scan.ReShadeConfig, "ADDON", "LoadFromDllMain", AddonName);
-        plan.Note("I file NVIDIA/Streamline del gioco non vengono modificati.");
+        plan.Note(Tx.Get("mfg.note"));
         return plan.Build();
     }
 }
@@ -69,9 +70,9 @@ public sealed partial class AsiLoaderComponent : ComponentBase
 
     public override string Id => ComponentId;
     public override string Name => "Ultimate ASI Loader";
-    public override string Description => "Caricatore per mod .asi (ultima stabile dell'autore). Scegli il nome DLL richiesto dalla mod. Non installa mod ASI.";
+    public override string Description => Tx.Get("asi.desc");
     public override ComponentCategory Category => ComponentCategory.Loaders;
-    public override IReadOnlyList<ComponentOption> Options => [new("name", "Nome DLL", Names.Select(n => (n, n)).ToList(), "dinput8.dll")];
+    public override IReadOnlyList<ComponentOption> Options => [new("name", Tx.Get("asi.opt.name"), Names.Select(n => (n, n)).ToList(), "dinput8.dll")];
 
     [GeneratedRegex(@"^v\d+\.\d+\.\d+$")] private static partial Regex StableTag();
 
@@ -90,13 +91,13 @@ public sealed partial class AsiLoaderComponent : ComponentBase
     protected override ComponentStatus? DetectExternal(GameContext ctx)
     {
         var present = Present(ctx);
-        return present.Count == 0 ? null : new ComponentStatus(ComponentStatusKind.External, $"Presente come {string.Join(", ", present)} · {PeFile.FileVersion(PathGuard.Resolve(ctx.Folder, present[0]))}");
+        return present.Count == 0 ? null : new ComponentStatus(ComponentStatusKind.External, Tx.Get("asi.status.present", string.Join(", ", present), PeFile.FileVersion(PathGuard.Resolve(ctx.Folder, present[0]))));
     }
 
     protected override void CheckBlockers(GameContext ctx, List<string> blockers)
     {
         var present = Present(ctx);
-        if (present.Count > 1) blockers.Add($"Più ASI Loader presenti: il gioco ne carica uno solo ({string.Join(", ", present)}). Tieni un solo loader e rimuovi gli altri.");
+        if (present.Count > 1) blockers.Add(Tx.Get("asi.block.many", string.Join(", ", present)));
     }
 
     public override async Task<ChangePlan> PlanInstallAsync(GameContext ctx, IReadOnlyDictionary<string, string> options,
@@ -104,9 +105,9 @@ public sealed partial class AsiLoaderComponent : ComponentBase
     {
         var present = Present(ctx);
         var name = ctx.State.Get(Id)?.Files.FirstOrDefault()?.Path ?? (present.Count == 1 ? present[0] : Option(options, "name"));
-        if (!Names.Contains(name, StringComparer.OrdinalIgnoreCase)) throw new HdlssException("Nome DLL non supportato.");
+        if (!Names.Contains(name, StringComparer.OrdinalIgnoreCase)) throw new HdlssException(Tx.Get("asi.err.name"));
         var target = PathGuard.Resolve(ctx.Folder, name);
-        if (File.Exists(target) && !IsLoader(target)) throw new BlockedException($"{name} appartiene a un altro componente: scegli un altro nome.");
+        if (File.Exists(target) && !IsLoader(target)) throw new BlockedException(Tx.Get("asi.err.otherOwner", name));
 
         var (release, asset, zip) = await Releases.LatestAsset(ctx, Repo, a => a.Name == AssetName, 20_000_000, requireDigest: true, progress, cancel, StableTag().IsMatch);
         var temp = Releases.TempDir(ctx);
@@ -114,13 +115,13 @@ public sealed partial class AsiLoaderComponent : ComponentBase
         {
             Archives.Extract(zip, temp, n => n == "dinput8.dll", 16_000_000);
             var dll = Path.Combine(temp, "dinput8.dll");
-            if (!IsLoader(dll)) throw new HdlssException("ASI Loader: libreria x64 non valida nel pacchetto.");
+            if (!IsLoader(dll)) throw new HdlssException(Tx.Get("asi.err.lib"));
             var plan = ctx.NewPlan(this, $"{release.Tag} · {name}");
             plan.Meta("source", asset.Url);
             plan.Meta("name", name);
             plan.AddFile(name, dll);
-            if (present.Count == 1 && ctx.State.Get(Id) == null) plan.Note($"ASI Loader esistente ({name}) aggiornato: la versione precedente resta nel backup.");
-            plan.Note("Le mod .asi e le loro impostazioni non vengono toccate.");
+            if (present.Count == 1 && ctx.State.Get(Id) == null) plan.Note(Tx.Get("asi.note.updated", name));
+            plan.Note(Tx.Get("asi.note.mods"));
             return plan.Build();
         }
         finally { Releases.Cleanup(temp); }
@@ -144,11 +145,11 @@ public sealed class ReFrameworkComponent : ComponentBase
 
     public override string Id => ComponentId;
     public override string Name => "REFramework";
-    public override string Description => "Loader per mod e script dei giochi RE Engine (Capcom). Installalo solo se una mod lo richiede. Versione corrente: nightly ufficiale; edizioni senza ray tracing di RE2/RE3/RE7: pacchetto TDB stabile.";
+    public override string Description => Tx.Get("ref.desc");
     public override ComponentCategory Category => ComponentCategory.Loaders;
     public override bool IsRelevant(GameContext ctx) => Identify(ctx.Game) != null;
     public override IReadOnlyList<ComponentOption> Options =>
-        [new("edition", "Edizione", [("current", "Corrente / ray tracing"), ("legacy", "Legacy senza ray tracing (RE2/RE3/RE7)")], "current")];
+        [new("edition", Tx.Get("ref.opt.edition"), [("current", Tx.Get("ref.opt.current")), ("legacy", Tx.Get("ref.opt.legacy"))], "current")];
 
     public static string? Identify(Game game) =>
         GameIds.TryGetValue(Path.GetFileNameWithoutExtension(game.Exe), out var id) ? id : null;
@@ -159,15 +160,15 @@ public sealed class ReFrameworkComponent : ComponentBase
     protected override ComponentStatus? DetectExternal(GameContext ctx)
     {
         var dll = PathGuard.Resolve(ctx.Folder, "dinput8.dll");
-        return File.Exists(dll) && Recognized(dll) ? new ComponentStatus(ComponentStatusKind.External, $"Presente · {PeFile.FileVersion(dll)}") : null;
+        return File.Exists(dll) && Recognized(dll) ? new ComponentStatus(ComponentStatusKind.External, Tx.Get("nrm.status.present", PeFile.FileVersion(dll))) : null;
     }
 
     protected override void CheckBlockers(GameContext ctx, List<string> blockers)
     {
-        if (Identify(ctx.Game) == null) { blockers.Add("Gioco RE Engine non riconosciuto: REFramework funziona solo con alcuni giochi RE Engine e l'eseguibile scelto non risulta tra questi. Controlla l'eseguibile in «Eseguibile»."); return; }
+        if (Identify(ctx.Game) == null) { blockers.Add(Tx.Get("ref.block.unknown")); return; }
         var dll = PathGuard.Resolve(ctx.Folder, "dinput8.dll");
         if (File.Exists(dll) && !Recognized(dll) && ctx.State.OwnerOf("dinput8.dll") is not ComponentId)
-            blockers.Add("dinput8.dll già usata da un altro loader: REFramework ha bisogno dello stesso file (per esempio c'è l'ASI Loader). Rimuovi prima l'altro loader.");
+            blockers.Add(Tx.Get("ref.block.dinput"));
     }
 
     public override async Task<string?> LatestVersionAsync(GameContext ctx, IReadOnlyDictionary<string, string> options, CancellationToken cancel)
@@ -183,7 +184,7 @@ public sealed class ReFrameworkComponent : ComponentBase
     {
         var id = Identify(ctx.Game)!;
         bool legacy = Option(options, "edition") == "legacy";
-        if (legacy && id is not ("RE2" or "RE3" or "RE7")) throw new HdlssException("L'edizione legacy esiste solo per RE2, RE3 e RE7.");
+        if (legacy && id is not ("RE2" or "RE3" or "RE7")) throw new HdlssException(Tx.Get("ref.err.legacy"));
         var repo = legacy ? "praydog/REFramework" : "praydog/REFramework-nightly";
         var assetName = legacy ? id switch { "RE2" => "RE2_TDB66.zip", "RE3" => "RE3_TDB67.zip", _ => "RE7_TDB49.zip" } : "REFramework.zip";
         var (release, asset, zip) = await Releases.LatestAsset(ctx, repo, a => a.Name == assetName, 80_000_000, requireDigest: !legacy, progress, cancel);
@@ -192,11 +193,11 @@ public sealed class ReFrameworkComponent : ComponentBase
         {
             Archives.Extract(zip, temp, n => n == "dinput8.dll", 80_000_000);
             var dll = Path.Combine(temp, "dinput8.dll");
-            if (!File.Exists(dll) || !Recognized(dll)) throw new HdlssException("REFramework: pacchetto non valido.");
+            if (!File.Exists(dll) || !Recognized(dll)) throw new HdlssException(Tx.Get("ref.err.package"));
             var plan = ctx.NewPlan(this, $"{id} · {release.Tag}");
             plan.Meta("source", asset.Url);
             plan.AddFile("dinput8.dll", dll, sameKind: Recognized);
-            plan.Note("Script e impostazioni di REFramework (cartella reframework) restano invariati alla rimozione.");
+            plan.Note(Tx.Get("ref.note.kept"));
             return plan.Build();
         }
         finally { Releases.Cleanup(temp); }
@@ -211,10 +212,10 @@ public sealed partial class Ue4ssComponent : ComponentBase
 
     public override string Id => ComponentId;
     public override string Name => "UE4SS";
-    public override string Description => "Script system per mod Unreal (ultima stabile ufficiale). Il «lettore HDLSS» opzionale legge una volta al secondo i valori HDR attivi in gioco, senza modificarli, e li mostra nella scheda HDR Unreal.";
+    public override string Description => Tx.Get("ue4ss.desc");
     public override ComponentCategory Category => ComponentCategory.Loaders;
     public override bool IsRelevant(GameContext ctx) => ctx.Game.Engine != EngineKind.Unknown;
-    public override IReadOnlyList<ComponentOption> Options => [new("reader", "Lettore HDR HDLSS", [("on", "Includi"), ("off", "Non includere")], "on")];
+    public override IReadOnlyList<ComponentOption> Options => [new("reader", Tx.Get("ue4ss.opt.reader"), [("on", Tx.Get("ue4ss.opt.on")), ("off", Tx.Get("ue4ss.opt.off"))], "on")];
 
     [GeneratedRegex(@"^UE4SS_v[0-9]+\.[0-9]+\.[0-9]+\.zip$")] private static partial Regex PackageName();
 
@@ -226,24 +227,24 @@ public sealed partial class Ue4ssComponent : ComponentBase
         foreach (var rel in new[] { "UE4SS.dll", "ue4ss/UE4SS.dll" })
         {
             var dll = PathGuard.Resolve(ctx.Folder, rel);
-            if (File.Exists(dll)) return new ComponentStatus(ComponentStatusKind.External, $"Presente ({rel}) · {PeFile.FileVersion(dll)}");
+            if (File.Exists(dll)) return new ComponentStatus(ComponentStatusKind.External, Tx.Get("ue4ss.status.present", rel, PeFile.FileVersion(dll)));
         }
         return null;
     }
 
     protected override void CheckBlockers(GameContext ctx, List<string> blockers)
     {
-        if (ctx.Game.Engine == EngineKind.Unknown) blockers.Add("UE4SS serve solo per Unreal Engine: questo gioco non risulta fatto con Unreal. Se lo è, scegli l'eseguibile in Binaries/Win64 da «Eseguibile».");
-        if (File.Exists(PathGuard.Resolve(ctx.Folder, "override.txt"))) blockers.Add("Installazione UE4SS personalizzata: c'è un file override.txt, quindi HDLSS5 non tocca nulla. Gestiscila a mano.");
+        if (ctx.Game.Engine == EngineKind.Unknown) blockers.Add(Tx.Get("ue4ss.block.notUnreal"));
+        if (File.Exists(PathGuard.Resolve(ctx.Folder, "override.txt"))) blockers.Add(Tx.Get("ue4ss.block.override"));
         bool flat = File.Exists(PathGuard.Resolve(ctx.Folder, "UE4SS.dll")), nested = File.Exists(PathGuard.Resolve(ctx.Folder, "ue4ss/UE4SS.dll"));
-        if (flat && nested) blockers.Add("Due copie di UE4SS nel gioco: una in ue4ss\\ e una nella cartella del gioco. Tienine una sola: rimuovi quella che non usi, da questa scheda se l'ha installata HDLSS5, altrimenti con il programma che l'ha installata.");
+        if (flat && nested) blockers.Add(Tx.Get("ue4ss.block.twoCopies"));
         if (!ctx.Installed(Id))
         {
-            if (flat || nested) blockers.Add("UE4SS già presente: è stato installato a mano o da un altro programma (per esempio UE Mod Manager). Aggiornalo con lo stesso metodo.");
-            else if (File.Exists(PathGuard.Resolve(ctx.Folder, "dwmapi.dll"))) blockers.Add("dwmapi.dll già occupata da un altro loader: UE4SS usa lo stesso file e HDLSS5 non lo sovrascrive. Rimuovi prima l'altro loader.");
+            if (flat || nested) blockers.Add(Tx.Get("ue4ss.block.present"));
+            else if (File.Exists(PathGuard.Resolve(ctx.Folder, "dwmapi.dll"))) blockers.Add(Tx.Get("ue4ss.block.dwmapi"));
         }
         else if (ChangedByOthers(ctx) is { } rel)
-            blockers.Add($"UE4SS ({rel}) modificato da un altro programma: per esempio UE Mod Manager, con la sua build per questo gioco. HDLSS5 non lo sovrascrive. Aggiornalo con quel programma.");
+            blockers.Add(Tx.Get("ue4ss.block.changed", rel));
     }
 
     /// <summary>
@@ -275,9 +276,9 @@ public sealed partial class Ue4ssComponent : ComponentBase
                 n is "UE4SS.dll" or "dwmapi.dll" or "UE4SS-settings.ini"
                 || n.StartsWith("Mods/", StringComparison.Ordinal) || n.StartsWith("ue4ss/", StringComparison.Ordinal), 60_000_000, 150_000_000);
             if (!files.Contains("dwmapi.dll") || !(files.Contains("UE4SS.dll") || files.Contains("ue4ss/UE4SS.dll")))
-                throw new HdlssException("Pacchetto UE4SS senza runtime o loader.");
+                throw new HdlssException(Tx.Get("ue4ss.err.pkg"));
             foreach (var dll in files.Where(f => f.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)))
-                if (!PeFile.IsPe64(PathGuard.Resolve(temp, dll))) throw new HdlssException($"UE4SS: {dll} non è x64.");
+                if (!PeFile.IsPe64(PathGuard.Resolve(temp, dll))) throw new HdlssException(Tx.Get("ue4ss.err.x64", dll));
             CheckLayout(ctx, files);
 
             var plan = ctx.NewPlan(this, release.Tag);
@@ -291,18 +292,18 @@ public sealed partial class Ue4ssComponent : ComponentBase
                 if (isConfig && record?.FindFile(rel) == null && File.Exists(plan.Full(rel))) { preserved++; continue; }
                 plan.AddFile(rel, PathGuard.Resolve(temp, rel), keepIfModified: isConfig);
             }
-            if (preserved > 0) plan.Note($"{preserved} file di mod/configurazione già presenti conservati.");
+            if (preserved > 0) plan.Note(Tx.Get("ue4ss.note.preserved", preserved));
 
             if (Option(options, "reader") == "on")
             {
                 var mods = files.Any(f => f.StartsWith("ue4ss/", StringComparison.Ordinal)) ? "ue4ss/Mods" : "Mods";
                 var script = Path.Combine(ctx.Services.Paths.Bundled, "hdlss-telemetry.lua");
-                if (!File.Exists(script)) throw new HdlssException("bundled/hdlss-telemetry.lua mancante.");
+                if (!File.Exists(script)) throw new HdlssException(Tx.Get("ue4ss.err.script"));
                 plan.AddFile($"{mods}/{ReaderMod}/Scripts/main.lua", script);
                 plan.AddBytes($"{mods}/{ReaderMod}/enabled.txt", []);
-                plan.Note("Lettore HDR attivo: dopo l'avvio del gioco i valori compaiono nella scheda «HDR Unreal».");
+                plan.Note(Tx.Get("ue4ss.note.reader"));
             }
-            plan.Note("Compatibilità specifica del gioco non garantita: controlla UE4SS.log dopo l'avvio.");
+            plan.Note(Tx.Get("ue4ss.note.compat"));
             return plan.Build();
         }
         finally { Releases.Cleanup(temp); }
@@ -318,6 +319,6 @@ public sealed partial class Ue4ssComponent : ComponentBase
         var runtime = packageFiles.Contains("ue4ss/UE4SS.dll") ? "ue4ss/UE4SS.dll" : "UE4SS.dll";
         var other = runtime == "UE4SS.dll" ? "ue4ss/UE4SS.dll" : "UE4SS.dll";
         if (File.Exists(PathGuard.Resolve(ctx.Folder, other)))
-            throw new BlockedException($"UE4SS è installato in {other}, il pacchetto ufficiale lo mette in {runtime}: installarlo lascerebbe due copie e il gioco avvierebbe quella sbagliata. Se vuoi davvero passare alla versione ufficiale, rimuovi prima UE4SS.");
+            throw new BlockedException(Tx.Get("ue4ss.err.layout", other, runtime));
     }
 }

@@ -1,3 +1,4 @@
+using Hdlss.Core.Text;
 using System.Diagnostics;
 using System.IO.Compression;
 
@@ -14,7 +15,7 @@ public static class Archives
         long entryLimit = DefaultEntryLimit, long totalLimit = DefaultTotalLimit)
     {
         Directory.CreateDirectory(destination);
-        if (Directory.EnumerateFileSystemEntries(destination).Any()) throw new HdlssException("La cartella di estrazione deve essere vuota.");
+        if (Directory.EnumerateFileSystemEntries(destination).Any()) throw new HdlssException(Tx.Get("arc.destNotEmpty"));
         return archive.EndsWith(".7z", StringComparison.OrdinalIgnoreCase)
             ? ExtractWithTar(archive, destination, filter, entryLimit, totalLimit)
             : ExtractZip(File.OpenRead(archive), destination, filter, entryLimit, totalLimit);
@@ -25,13 +26,13 @@ public static class Archives
         var written = new List<string>();
         long total = 0;
         using var zip = new ZipArchive(stream, ZipArchiveMode.Read);
-        if (zip.Entries.Count > 5000) throw new HdlssException("Archivio con troppi elementi.");
+        if (zip.Entries.Count > 5000) throw new HdlssException(Tx.Get("arc.tooMany"));
         foreach (var entry in zip.Entries)
         {
             var name = entry.FullName.Replace('\\', '/');
             if (name.EndsWith('/') || entry.Length == 0 && name.EndsWith('/')) continue;
             if (filter != null && !filter(name)) continue;
-            if (entry.Length > entryLimit || (total += entry.Length) > totalLimit) throw new HdlssException($"Elemento troppo grande nell'archivio: {name}");
+            if (entry.Length > entryLimit || (total += entry.Length) > totalLimit) throw new HdlssException(Tx.Get("arc.entryTooBig", name));
             var target = PathGuard.Resolve(destination, name);
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             using (var input = entry.Open())
@@ -46,7 +47,7 @@ public static class Archives
     public static Stream OpenAppendedZip(string exe, long maxBytes = 100L << 20)
     {
         var bytes = File.ReadAllBytes(exe);
-        if (bytes.Length > maxBytes) throw new HdlssException("Pacchetto troppo grande.");
+        if (bytes.Length > maxBytes) throw new HdlssException(Tx.Get("arc.tooBig"));
         if (bytes.Length < 2 || bytes[0] != 'M' || bytes[1] != 'Z') return new MemoryStream(bytes, writable: false);
         for (int i = bytes.Length - 22; i >= 0; i--)
         {
@@ -55,7 +56,7 @@ public static class Archives
             if (offset >= 0 && offset < bytes.Length - 4 && bytes[offset] == 0x50 && bytes[offset + 1] == 0x4B && bytes[offset + 2] == 3 && bytes[offset + 3] == 4)
                 return new MemoryStream(bytes, (int)offset, bytes.Length - (int)offset, writable: false);
         }
-        throw new HdlssException("Archivio non trovato nell'installer.");
+        throw new HdlssException(Tx.Get("arc.notFound"));
     }
 
     private static List<string> ExtractWithTar(string archive, string destination, Func<string, bool>? filter, long entryLimit, long totalLimit)
@@ -65,7 +66,7 @@ public static class Archives
         foreach (var line in listing.Split('\n', StringSplitOptions.RemoveEmptyEntries))
         {
             if (line[0] == 'd') continue;
-            if (line[0] != '-') throw new HdlssException("Archivio con collegamenti o elementi speciali non supportato.");
+            if (line[0] != '-') throw new HdlssException(Tx.Get("arc.links"));
         }
         foreach (var raw in RunTar($"-tf \"{archive}\"", 4 << 20).Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
         {
@@ -74,7 +75,7 @@ public static class Archives
             PathGuard.Normalize(name);
             if (filter == null || filter(name)) names.Add(name);
         }
-        if (names.Count > 5000) throw new HdlssException("Archivio con troppi elementi.");
+        if (names.Count > 5000) throw new HdlssException(Tx.Get("arc.tooMany"));
         long total = 0;
         foreach (var name in names)
         {
@@ -100,15 +101,15 @@ public static class Archives
 
     private static long RunTar(string args, Stream output, long limit)
     {
-        if (args.Count(c => c == '"') % 2 != 0) throw new HdlssException("Percorso non valido.");
+        if (args.Count(c => c == '"') % 2 != 0) throw new HdlssException(Tx.Get("arc.badPath"));
         var psi = new ProcessStartInfo(TarExe, args)
         { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-        using var p = Process.Start(psi) ?? throw new HdlssException("tar.exe non disponibile.");
+        using var p = Process.Start(psi) ?? throw new HdlssException(Tx.Get("arc.noTar"));
         var error = p.StandardError.ReadToEndAsync();
         using var timer = new Timer(_ => { try { if (!p.HasExited) p.Kill(); } catch (InvalidOperationException) { } }, null, 120_000, Timeout.Infinite);
         long copied = CopyBounded(p.StandardOutput.BaseStream, output, limit);
         p.WaitForExit();
-        if (p.ExitCode != 0) throw new HdlssException("Estrazione non riuscita: " + error.Result.Trim());
+        if (p.ExitCode != 0) throw new HdlssException(Tx.Get("arc.extractFailed", error.Result.Trim()));
         return copied;
     }
 
@@ -119,7 +120,7 @@ public static class Archives
         while ((read = input.Read(buffer, 0, buffer.Length)) > 0)
         {
             total += read;
-            if (total > limit) throw new HdlssException("Elemento dell'archivio oltre il limite previsto.");
+            if (total > limit) throw new HdlssException(Tx.Get("arc.entryOver"));
             output.Write(buffer, 0, read);
         }
         return total;
