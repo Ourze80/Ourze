@@ -1,12 +1,15 @@
 using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 using Hdlss.App.ViewModels;
 
 namespace Hdlss.App.Views;
 
 public partial class MainWindow : Window
 {
+    private bool _scrollQueued;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -15,8 +18,15 @@ public partial class MainWindow : Window
             if (DataContext is MainViewModel vm)
                 vm.LogLines.CollectionChanged += (_, e) =>
                 {
-                    if (e.Action == NotifyCollectionChangedAction.Add && LogList.Items.Count > 0)
-                        LogList.ScrollIntoView(LogList.Items[^1]);
+                    // Scroll after the ListBox has processed the change: doing it inside this handler can run
+                    // before the ListBox sees the new line, WPF throws, the error is logged, and it loops.
+                    if (e.Action != NotifyCollectionChangedAction.Add || _scrollQueued) return;
+                    _scrollQueued = true;
+                    Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
+                    {
+                        _scrollQueued = false;
+                        if (LogList.IsVisible && vm.LogLines.Count > 0) LogList.ScrollIntoView(vm.LogLines[^1]);
+                    });
                 };
         };
         // Ctrl+F: search the library from anywhere.

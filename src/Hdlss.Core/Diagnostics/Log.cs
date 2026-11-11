@@ -17,6 +17,10 @@ public sealed class Log
 {
     private readonly string? _folder;
     private readonly object _gate = new();
+    /// <summary>Largest size of one day's log file.</summary>
+    public const long MaxFileBytes = 8 * 1024 * 1024;
+    private string? _file;
+    private long _size;
     public event Action<LogEntry>? Written;
 
     public Log(string? folder) { _folder = folder; }
@@ -40,9 +44,19 @@ public sealed class Log
                 try
                 {
                     Directory.CreateDirectory(_folder);
-                    File.AppendAllText(Path.Combine(_folder, $"hdlss-{entry.Time:yyyyMMdd}.log"), entry + Environment.NewLine, Encoding.UTF8);
+                    var path = Path.Combine(_folder, $"hdlss-{entry.Time:yyyyMMdd}.log");
+                    // One day's file is capped: an error repeating in a loop must not fill the disk.
+                    if (_file != path) { _file = path; _size = File.Exists(path) ? new FileInfo(path).Length : 0; }
+                    var line = _size < MaxFileBytes ? entry + Environment.NewLine
+                        : _size < long.MaxValue ? $"{entry.Time:HH:mm:ss} WARNING Log troncato: limite giornaliero raggiunto.{Environment.NewLine}" : null;
+                    if (line != null)
+                    {
+                        File.AppendAllText(path, line, Encoding.UTF8);
+                        _size = _size < MaxFileBytes ? _size + Encoding.UTF8.GetByteCount(line) : long.MaxValue;
+                    }
                 }
                 catch (IOException) { /* logging must never break an operation */ }
+                catch (UnauthorizedAccessException) { }
             }
         }
         Written?.Invoke(entry);

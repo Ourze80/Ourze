@@ -117,24 +117,41 @@ public sealed class NrModelComponent : ComponentBase
 
 /// <summary>
 /// RenoDX NR add-on for ReShade on games with native DLSS (DX12, or native Vulkan DLSS).
-/// Installs the add-on, the NR model for the GPU and registers early loading.
+/// Installs the add-on, the NR model for the GPU and registers early loading. The "lecram12"
+/// variant installs a locally imported DLSS5 NR 12.x package (add-ons + host folder) instead.
 /// </summary>
 public sealed class RenoDxNrComponent : ComponentBase
 {
     public const string ComponentId = "renodx-nr";
     public const string AddonName = "renodx-dlss5.addon64";
+    public const string Variant12 = "lecram12";
     public const string LecramHash = "79871879324053d49931a9f8c1865fcb83e8146df4a56b146d7a8a14cc7e70fe";
     public const string ShortFuseHash = "a8fd34b531fd22c3dbd008ed8fd3cbfcca2fb451729e19cd1fc2e4c85b5068d4";
     public const string Legacy85Hash = "ee99295d60426c9e05165ac4cb44a9ce773ff05b39bd7ae4a3c0f61e53b6c8a0";
+    /// <summary>Lowest ReShade version DLSS5 NR 12.x supports.</summary>
+    public static readonly Version MinReShade12 = new(6, 8);
 
     public override string Id => ComponentId;
     public override string Name => Tx.Get("rdx.name");
     public override string Description => Tx.Get("rdx.desc");
     public override IReadOnlyList<string> Requires => [ReShadeComponent.ComponentId];
-    public override IReadOnlyList<ComponentOption> Options =>
-    [
-        new("variant", Tx.Get("rdx.opt.variant"), [("lecram", Tx.Get("rdx.opt.lecram")), ("shortfuse", "ShortFuse 2026-10-16")], "lecram"),
-    ];
+    /// <summary>Label of the 12.x recorded for the game last loaded (for the drop-down when nothing is imported).</summary>
+    private static volatile string? _installed12Label;
+    public override bool IsRelevant(GameContext ctx) => true; // with a 12.x package it also fits games without native DLSS
+
+    public override IReadOnlyList<ComponentOption> Options
+    {
+        get
+        {
+            var choices = new List<(string, string)> { ("lecram", Tx.Get("rdx.opt.lecram")) };
+            var imported = NrAddonLibrary.Current?.Newest;
+            // The installed 12.x stays selectable by its label even when nothing is imported (manual copy).
+            if (imported != null) choices.Add((Variant12, imported.Label));
+            else if (_installed12Label != null) choices.Add((Variant12, _installed12Label));
+            choices.Add(("shortfuse", "ShortFuse 2026-10-16"));
+            return [new("variant", Tx.Get("rdx.opt.variant"), choices, imported != null ? Variant12 : "lecram")];
+        }
+    }
 
     public static string VariantLabel(string? hash) => hash?.ToLowerInvariant() switch
     {
@@ -144,43 +161,97 @@ public sealed class RenoDxNrComponent : ComponentBase
         _ => Tx.Get("rdx.variant.unknown"),
     };
 
+    /// <summary>Label of an add-on file: known hashes first, then DLSS5 NR recognized by its content.</summary>
+    public static string AddonLabel(string file)
+    {
+        var hash = FileHash.OfFile(file);
+        if (hash.ToLowerInvariant() is LecramHash or ShortFuseHash or Legacy85Hash) return VariantLabel(hash);
+        return NrAddonInfo.Identify(file) ?? VariantLabel(hash);
+    }
+
+    /// <summary>The NR add-on in the folder: RenoDX-named, or any DLSS5 NR build whatever its name.</summary>
+    private static string? FindAddon(GameContext ctx) =>
+        ctx.Scan.Addons.FirstOrDefault(a => Path.GetFileName(a).StartsWith("renodx-dlss", StringComparison.OrdinalIgnoreCase))
+        ?? ctx.Scan.Addons.FirstOrDefault(ctx.Scan.IsNrAddon);
+
     protected override ComponentStatus? DetectExternal(GameContext ctx)
     {
-        var addon = ctx.Scan.Addons.FirstOrDefault(a => Path.GetFileName(a).StartsWith("renodx-dlss", StringComparison.OrdinalIgnoreCase));
+        var addon = FindAddon(ctx);
         return addon == null ? null
-            : new ComponentStatus(ComponentStatusKind.External, Tx.Get("rdx.status.external", addon, VariantLabel(FileHash.OfFile(PathGuard.Resolve(ctx.Folder, addon)))));
+            : new ComponentStatus(ComponentStatusKind.External, Tx.Get("rdx.status.external", addon, AddonLabel(PathGuard.Resolve(ctx.Folder, addon))));
     }
+
+    private static bool Installed12(GameContext ctx) => ctx.State.Get(ComponentId)?.Meta.GetValueOrDefault("variant") == Variant12;
 
     protected override void CheckBlockers(GameContext ctx, List<string> blockers)
     {
         NrRules.CheckGpu(ctx, blockers);
         NrRules.CheckSingleInjector(ctx, Id, blockers);
-        if (ctx.Api != GraphicsApi.DX12 && ctx.Api != GraphicsApi.Vulkan)
+        // With a 12.x package available the DX check moves to the plan: it only applies to 10.8 / ShortFuse.
+        if (ctx.Api != GraphicsApi.DX12 && ctx.Api != GraphicsApi.Vulkan && !Installed12(ctx) && ctx.Services.NrAddons.Newest == null)
             blockers.Add(Tx.Get("rdx.block.dx"));
         if (ctx.Installed(ReShadeComponent.ComponentId) && !ctx.Scan.ReShadeSupportsAddons && ctx.Api != GraphicsApi.Vulkan)
             blockers.Add(Tx.Get("rdx.block.noEarly"));
+        if (Installed12(ctx)) blockers.AddRange(Lecram12Blockers(ctx));
         var owner = ctx.State.OwnerOf("nvngx_dlssnr.dll");
         if (owner != null && owner != Id && !NrRules.CanTakeOverModel(owner)) blockers.Add(Tx.Get("rdx.block.model", ComponentCatalog.NameOf(owner)));
     }
 
-    public override Task<string?> LatestVersionAsync(GameContext ctx, IReadOnlyDictionary<string, string> options, CancellationToken cancel) =>
-        Task.FromResult<string?>($"{VariantLabel(Option(options, "variant") == "shortfuse" ? ShortFuseHash : LecramHash)} · {NrModels.ForGpu(ctx.Gpu).Label}");
+    /// <summary>Extra conditions of DLSS5 NR 12.x: ReShade 6.8+, and no Feeder / Lumenite / depth add-on.</summary>
+    public static IReadOnlyList<string> Lecram12Blockers(GameContext ctx)
+    {
+        var list = new List<string>();
+        if (ctx.Installed(FeederComponent.ComponentId)
+            || ctx.Scan.Addons.Any(a => Path.GetFileName(a) is var n
+                && (n.Equals(FeederComponent.FeedAddon, StringComparison.OrdinalIgnoreCase) || n.Contains("lumenite", StringComparison.OrdinalIgnoreCase))))
+            list.Add(Tx.Get("rdx.block.feeder12"));
+        if (ctx.Scan.ReShadeLoaders.Count == 1
+            && PeFile.FileVersion(PathGuard.Resolve(ctx.Folder, ctx.Scan.ReShadeLoaders[0])) is { Major: > 0 } v && v < MinReShade12)
+            list.Add(Tx.Get("rdx.block.reshade12", NrAddonInfo.Format(v), "6.8"));
+        return list;
+    }
+
+    public override Task<string?> LatestVersionAsync(GameContext ctx, IReadOnlyDictionary<string, string> options, CancellationToken cancel)
+    {
+        var variant = Option(options, "variant");
+        if (variant == Variant12)
+            return Task.FromResult(ctx.Services.NrAddons.Newest is { } p ? $"{p.Label} · {NrModels.ForGpu(ctx.Gpu).Label}" : null);
+        return Task.FromResult<string?>($"{VariantLabel(variant == "shortfuse" ? ShortFuseHash : LecramHash)} · {NrModels.ForGpu(ctx.Gpu).Label}");
+    }
 
     /// <summary>Add-on variant and NR model read from the files in the game folder.</summary>
     protected override string? PresentVersion(GameContext ctx)
     {
-        var addon = ctx.Scan.Addons.FirstOrDefault(a => Path.GetFileName(a).StartsWith("renodx-dlss", StringComparison.OrdinalIgnoreCase));
+        var addon = FindAddon(ctx);
         var model = PathGuard.Resolve(ctx.Folder, "nvngx_dlssnr.dll");
         if (addon == null || !File.Exists(model)) return null;
-        var hash = FileHash.OfFile(PathGuard.Resolve(ctx.Folder, addon))?.ToLowerInvariant();
-        if (hash is not (LecramHash or ShortFuseHash) || NrModels.Identify(model) is not { } known) return null;
-        return $"{VariantLabel(hash)} · {known.Label}";
+        var full = PathGuard.Resolve(ctx.Folder, addon);
+        var hash = FileHash.OfFile(full).ToLowerInvariant();
+        var label = hash is LecramHash or ShortFuseHash ? VariantLabel(hash) : NrAddonInfo.Identify(full);
+        if (label == null || NrModels.Identify(model) is not { } known) return null;
+        return $"{label} · {known.Label}";
+    }
+
+    /// <summary>"Lecram 12.9.9 · model" when the NR add-on in the folder is a DLSS5 NR build, otherwise null.</summary>
+    public static string? Present12(GameContext ctx)
+    {
+        var addon = ctx.Scan.Addons.FirstOrDefault(ctx.Scan.IsNrAddon);
+        if (addon == null || NrAddonInfo.Identify(PathGuard.Resolve(ctx.Folder, addon)) is not { } label) return null;
+        var model = PathGuard.Resolve(ctx.Folder, "nvngx_dlssnr.dll");
+        return File.Exists(model) && NrModels.Identify(model) is { } known ? $"{label} · {known.Label}" : label;
     }
 
     public override Task<ChangePlan> PlanInstallAsync(GameContext ctx, IReadOnlyDictionary<string, string> options,
         IProgress<OperationProgress>? progress, CancellationToken cancel)
     {
         var variant = Option(options, "variant");
+        if (variant == Variant12)
+        {
+            var model12 = NrRules.ModelFile(ctx, out var nr12);
+            return Task.FromResult(Plan12(ctx, model12, nr12));
+        }
+        if (ctx.Api != GraphicsApi.DX12 && ctx.Api != GraphicsApi.Vulkan)
+            throw new BlockedException(Tx.Get(ctx.Services.NrAddons.Newest != null ? "rdx.block.dxLecram12" : "rdx.block.dx"));
         var (file, hash) = variant == "shortfuse"
             ? ("renodx-dlss5-shortfuse.addon64", ShortFuseHash)
             : ("renodx-dlss5-lecram-10.8.addon64", LecramHash);
@@ -190,9 +261,82 @@ public sealed class RenoDxNrComponent : ComponentBase
         var plan = ctx.NewPlan(this, $"{VariantLabel(hash)} · {nr.Label}");
         plan.AddFile(NrRules.AddonPath(ctx, AddonName), source);
         plan.AddFile("nvngx_dlssnr.dll", model);
+        DropListed(plan, ctx, NrAddonPackage.Addon64); // switching back from 12.x: the plan releases its files
         plan.IniListAdd(ctx.Scan.ReShadeConfig, "ADDON", "LoadFromDllMain", AddonName);
         plan.Note(Tx.Get("rdx.note"));
         return Task.FromResult(plan.Build());
+    }
+
+    internal ChangePlan Plan12(GameContext ctx, string model, NrModel nr)
+    {
+        var package = ctx.Services.NrAddons.Newest ?? throw new HdlssException(Tx.Get("rdx.err.noImported"));
+        var blockers = Lecram12Blockers(ctx);
+        if (blockers.Count > 0) throw new BlockedException(string.Join("\n", blockers));
+
+        var plan = ctx.NewPlan(this, $"{package.Label} · {nr.Label}");
+        foreach (var (relative, source) in package.Files())
+            plan.AddFile(NrRules.AddonPath(ctx, relative), source);
+        plan.AddFile("nvngx_dlssnr.dll", model);
+        // The older renodx-dlss5.addon64 HDLSS wrote is not wanted any more: PlanBuilder.Build releases it
+        // (back to the original) and its early-load entry is dropped here.
+        DropListed(plan, ctx, AddonName);
+        plan.IniListAdd(ctx.Scan.ReShadeConfig, "ADDON", "LoadFromDllMain", NrAddonPackage.Addon64);
+        plan.Note(Tx.Get("rdx.note12"));
+        return plan.Build();
+    }
+
+    /// <summary>Takes a file name out of ReShade's LoadFromDllMain when this component put that file there before.</summary>
+    private static void DropListed(PlanBuilder plan, GameContext ctx, string addonName)
+    {
+        if (plan.Existing?.FindFile(NrRules.AddonPath(ctx, addonName)) == null) return;
+        plan.Ini(ctx.Scan.ReShadeConfig).ListRemove("ADDON", "LoadFromDllMain", addonName);
+    }
+
+    /// <summary>
+    /// A managed add-on that the user replaced by hand with a DLSS5 NR build (any version) is adopted:
+    /// the record's After hash and version follow the file, so it is not "modified by another program"
+    /// and removal still restores the pre-HDLSS original. Writes no game file; returns true when the
+    /// state changed.
+    /// </summary>
+    public static bool AdoptManualReplacement(Services services, GameState state, bool track = true)
+    {
+        var changed = AdoptCore(services, state);
+        if (!track) return changed; // background scans of other games must not change the open game's drop-down
+        var r = state.Get(ComponentId);
+        _installed12Label = r != null && r.Meta.GetValueOrDefault("variant") == Variant12 && r.Version.StartsWith("Lecram ", StringComparison.Ordinal)
+            ? r.Version.Split(" · ")[0] : null;
+        return changed;
+    }
+
+    private static bool AdoptCore(Services services, GameState state)
+    {
+        if (state.Get(ComponentId) is not { } record) return false;
+        string? label = null;
+        bool changed = false;
+        foreach (var file in record.Files.Where(f => f.Path.EndsWith(".addon64", StringComparison.OrdinalIgnoreCase)))
+        {
+            string full;
+            try { full = Locations.Resolve(state.Folder, record.Roots, file.Path); }
+            catch (Exception ex) when (ex is HdlssException or IOException or ArgumentException) { continue; }
+            if (!File.Exists(full)) continue;
+            string hash;
+            try { hash = FileHash.OfFile(full); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { continue; }
+            if (FileHash.Equal(hash, file.After) || FileHash.Equal(hash, file.Before)) continue;
+            var identified = NrAddonInfo.Identify(full);
+            if (identified == null) continue;
+            file.After = hash;
+            changed = true;
+            if (label == null || !file.Path.Contains(NrAddonPackage.HostDir, StringComparison.OrdinalIgnoreCase)) label = identified;
+            services.Log.Info($"Add-on sostituito a mano, adottato: {file.Path} · {identified}");
+        }
+        if (!changed) return false;
+        var rest = record.Version.IndexOf(" · ", StringComparison.Ordinal) is var i and >= 0 ? record.Version[i..] : "";
+        record.Version = label + rest;
+        record.Meta["variant"] = Variant12;
+        record.UpdatedAt = DateTime.Now;
+        services.States.Save(state);
+        return true;
     }
 
     internal static string Bundled(GameContext ctx, string file, string hash)

@@ -309,6 +309,8 @@ public sealed partial class GameDetailViewModel : ObservableObject
                 Loc.T("gd.foreign.text"),
                 "Warn", PrimaryAction.ImportForeign, Loc.T("comp.importHdlss"));
             PlanSteps.Add(foreignNr.Title);
+            // The button imports everything recognised: list it all here instead of a second notice below.
+            foreach (var other in Foreign.Where(f => f != foreignNr)) PlanSteps.Add(other.Title);
         }
         else if (!ctx.Gpu.SupportsNr)
         {
@@ -337,7 +339,7 @@ public sealed partial class GameDetailViewModel : ObservableObject
     {
         var ctx = Context!;
         var legacy = Legacy.Where(l => (l.IsStale || l.CanAdopt && !ctx.Installed(l.Install.AdoptableAs!)) && l != shownLegacy).ToList();
-        var foreign = Foreign.Where(f => f != shownForeign).ToList();
+        var foreign = shownForeign != null ? [] : Foreign.ToList();
         if (legacy.Count > 0)
         {
             BannerText = Loc.F("gd.banner.legacy", legacy.Count);
@@ -375,18 +377,20 @@ public sealed partial class GameDetailViewModel : ObservableObject
     public bool MethodsEnabled => Context != null && NrAdvisor.Installed(Context) == null;
 
     /// <summary>The ReShade variant that fits this game.</summary>
-    private NrPath ReShadePath => Context == null ? NrPath.Native
-        : Context.Api == GraphicsApi.DX12 && Recommendation?.HasNativeDlss == true ? NrPath.Native : NrPath.Feeder;
+    private bool HasNativeDx12Dlss => Context?.Api == GraphicsApi.DX12 && Recommendation?.HasNativeDlss == true;
+    /// <summary>RenoDX NR without native DLSS: only with an imported DLSS5 NR 12 (the advisor then recommends Native).</summary>
+    private bool ViaLecram12 => !HasNativeDx12Dlss && Recommendation?.Path == NrPath.Native;
+    private NrPath ReShadePath => Context == null || HasNativeDx12Dlss || ViaLecram12 ? NrPath.Native : NrPath.Feeder;
 
     public string ReShadeDescription => ReShadePath == NrPath.Native
-        ? Loc.T("gd.desc.native")
+        ? Loc.T(ViaLecram12 ? "gd.desc.nr12" : "gd.desc.native")
         : Loc.T("gd.desc.feeder");
     public string OptiDescription => Loc.T("gd.desc.opti");
 
     private string MethodExplanation => Method == NrMethod.OptiScaler
         ? Loc.T("gd.expl.opti")
         : ReShadePath == NrPath.Native
-            ? Loc.T("gd.expl.native")
+            ? Loc.T(ViaLecram12 ? "gd.expl.nr12" : "gd.expl.native")
             : Loc.T("gd.expl.feeder");
 
     partial void OnMethodChanged(NrMethod value)
@@ -479,7 +483,11 @@ public sealed partial class GameDetailViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private Task FixCompatAsync() => FixCompatibilityAsync(ask: true);
+    private async Task FixCompatAsync()
+    {
+        await FixCompatibilityAsync(ask: true);
+        await ReloadAsync(); // banner and library tile follow the new state
+    }
 
     /// <summary>
     /// Puts ReShade on the loader that fits (ReShade64.dll via OptiScaler, or back to dxgi.dll).
@@ -489,13 +497,29 @@ public sealed partial class GameDetailViewModel : ObservableObject
     {
         var ctx = Context;
         if (ctx == null) return;
-        await Main.RunAsync(Loc.T("gd.op.compat"), async (progress, cancel) =>
+        bool nrFix = Compatibility.Check(ctx).Any(i => i.Fixable && i.Kind == CompatKind.NrAddons);
+        await Main.RunAsync(Loc.T(nrFix ? "gd.op.nrCleanup" : "gd.op.compat"), async (progress, cancel) =>
         {
             ctx.Refresh();
-            var plan = await Task.Run(() => Compatibility.PlanFix(ctx), cancel);
-            if (plan == null) return;
-            if ((ask || Advanced) && !Dialogs.ConfirmPlan(plan)) throw new OperationCanceledException();
-            await Task.Run(() => Main.Host.Components.Apply(ctx, plan, progress), cancel);
+            // A Feeder HDLSS5 installed next to DLSS5 NR 12 goes through the card's own removal (preview included).
+            if (NrConflicts.NeedsFeederRemoval(ctx))
+            {
+                var removal = await RemovalFlow.PlanAsync(Main.Host, ctx, FeederComponent.ComponentId, cancel);
+                if (!removal.IsEmpty)
+                {
+                    if (!Dialogs.ConfirmPlan(removal)) throw new OperationCanceledException();
+                    await Task.Run(() => Main.Host.Components.Apply(ctx, removal, progress), cancel);
+                }
+                ctx.Refresh();
+            }
+            // Loader moves and NR add-on cleanup are separate plans: repeat until nothing is left (bounded).
+            for (int round = 0; round < 3; round++)
+            {
+                var plan = await Task.Run(() => Compatibility.PlanFix(ctx), cancel);
+                if (plan == null) return;
+                if ((ask || Advanced) && !Dialogs.ConfirmPlan(plan)) throw new OperationCanceledException();
+                await Task.Run(() => Main.Host.Components.Apply(ctx, plan, progress), cancel);
+            }
         });
     }
 
@@ -520,7 +544,7 @@ public sealed partial class GameDetailViewModel : ObservableObject
     /// <summary>Called after any component change: keeps ReShade and OptiScaler compatible, then reloads.</summary>
     internal async Task AfterChangeAsync(string componentId)
     {
-        if (componentId is OptiScalerComponent.ComponentId or ReShadeComponent.ComponentId)
+        if (componentId is OptiScalerComponent.ComponentId or ReShadeComponent.ComponentId or RenoDxNrComponent.ComponentId)
         {
             Context?.Refresh();
             if (Context != null && Compatibility.Check(Context).Any(i => i.Fixable)) await FixCompatibilityAsync(ask: false);

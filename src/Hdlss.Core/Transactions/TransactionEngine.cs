@@ -24,7 +24,7 @@ public sealed class TransactionEngine(ContentStore store, StateStore states, str
         var duplicate = plan.Files.GroupBy(f => f.Path, StringComparer.OrdinalIgnoreCase).FirstOrDefault(g => g.Count() > 1);
         if (duplicate != null) throw new HdlssException(Tx.Get("tx.duplicatePath", duplicate.Key));
 
-        log.Info($"{(plan.IsRemoval ? "RIMOZIONE" : "INSTALLAZIONE")} · {plan.GameName} · {plan.ComponentName} {plan.Version}");
+        log.Info($"{(plan.Cleanup ? "PULIZIA" : plan.IsRemoval ? "RIMOZIONE" : "INSTALLAZIONE")} · {plan.GameName} · {plan.ComponentName} {plan.Version}");
         progress?.Report(new(Tx.Get("tx.verifying"), 0));
 
         var resolved = plan.Files.Select(f => (Op: f, Full: Locations.Resolve(plan.Folder, plan.Roots, f.Path))).ToList();
@@ -39,7 +39,7 @@ public sealed class TransactionEngine(ContentStore store, StateStore states, str
         {
             Id = $"{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..8]}",
             GameId = plan.GameId, GameName = plan.GameName, Folder = plan.Folder, ComponentId = plan.ComponentId,
-            Description = $"{(plan.IsRemoval ? "Rimozione" : "Installazione")} {plan.ComponentName} {plan.Version}".Trim(),
+            Description = plan.Cleanup ? plan.ComponentName : $"{(plan.IsRemoval ? "Rimozione" : "Installazione")} {plan.ComponentName} {plan.Version}".Trim(),
             Status = JournalStatus.Pending,
             StateBefore = states.Load(plan.GameId, plan.Folder),
             Roots = new(plan.Roots),
@@ -148,6 +148,10 @@ public sealed class TransactionEngine(ContentStore store, StateStore states, str
         {
             state.Components[plan.Adopt.Id] = plan.Adopt;
         }
+        else if (plan.Cleanup)
+        {
+            Disown(state, plan.Disown);
+        }
         else if (plan.IsRemoval)
         {
             state.Components.Remove(plan.ComponentId);
@@ -188,6 +192,20 @@ public sealed class TransactionEngine(ContentStore store, StateStore states, str
             state.Components[plan.ComponentId] = record;
         }
         states.Save(state);
+    }
+
+    /// <summary>Forgets files (and early-load entries) that a cleanup plan removed; a record left without files goes too.</summary>
+    private static void Disown(GameState state, List<string> disown)
+    {
+        var paths = disown.Where(d => !d.StartsWith("ini:", StringComparison.Ordinal)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var entries = disown.Where(d => d.StartsWith("ini:", StringComparison.Ordinal)).Select(d => d[4..]).ToHashSet(StringComparer.OrdinalIgnoreCase); // "file|name"
+        foreach (var record in state.Components.Values.ToList())
+        {
+            int before = record.Files.Count;
+            record.Files.RemoveAll(f => paths.Contains(f.Path));
+            record.IniEdits.RemoveAll(e => e.Kind == IniEditKind.ListAdd && e.Key.Equals("LoadFromDllMain", StringComparison.OrdinalIgnoreCase) && entries.Contains(PathGuard.Normalize(e.File) + "|" + e.Value));
+            if (record.Files.Count < before && record.Files.Count == 0 && !record.IniEdits.Any(e => e.Applied)) state.Components.Remove(record.Id);
+        }
     }
 
     private void WriteFromStore(string full, string hash, FileAttributes attributes)

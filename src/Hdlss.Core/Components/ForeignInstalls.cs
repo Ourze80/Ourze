@@ -100,6 +100,12 @@ public static partial class ForeignInstalls
             Version = Version(ctx, install) is { } v ? $"{v} (importato)" : "importato",
             Meta = new() { ["imported"] = install.Source },
         };
+        // A DLSS5 NR 12.x found in the game is recorded as the "lecram12" variant, like one installed from here.
+        if (install.ComponentId == RenoDxNrComponent.ComponentId && RenoDxNrComponent.Present12(ctx) is { } label12)
+        {
+            record.Version = label12;
+            record.Meta["variant"] = RenoDxNrComponent.Variant12;
+        }
         var notes = new List<string>();
         foreach (var f in install.Files)
         {
@@ -125,7 +131,8 @@ public static partial class ForeignInstalls
     {
         var s = ctx.Scan;
         bool feed = s.Addons.Any(a => Path.GetFileName(a).Equals(FeederComponent.FeedAddon, StringComparison.OrdinalIgnoreCase));
-        bool renoNr = s.Addons.Any(a => RenoDxNrAddon().IsMatch(Path.GetFileName(a)));
+        bool IsNr(string a) => RenoDxNrAddon().IsMatch(Path.GetFileName(a)) || s.IsNrAddon(a);
+        bool renoNr = s.Addons.Any(IsNr);
         switch (id)
         {
             case ReShadeComponent.ComponentId when s.ReShadeLoaders.Count == 1:
@@ -140,7 +147,19 @@ public static partial class ForeignInstalls
                 yield return Vulkan.FeedJson;
                 break;
             case RenoDxNrComponent.ComponentId when !feed && renoNr:
-                foreach (var a in s.Addons.Where(a => RenoDxNrAddon().IsMatch(Path.GetFileName(a)))) yield return a;
+                foreach (var a in s.Addons.Where(IsNr))
+                {
+                    yield return a;
+                    // DLSS5 NR 12.x: the 32-bit add-on and the host folder next to it belong to the same package.
+                    if (!s.IsNrAddon(a)) continue;
+                    var dir = a.Contains('/') ? a[..(a.LastIndexOf('/') + 1)] : "";
+                    yield return dir + NrAddonPackage.Addon32;
+                    string host;
+                    try { host = PathGuard.Resolve(ctx.Folder, dir + NrAddonPackage.HostDir); }
+                    catch (UnsafePathException) { continue; }
+                    if (Directory.Exists(host))
+                        foreach (var h in Directory.EnumerateFiles(host, "*", SearchOption.AllDirectories)) yield return PathGuard.RelativeTo(ctx.Folder, h);
+                }
                 yield return "nvngx_dlssnr.dll";
                 break;
             case OptiScalerComponent.ComponentId when s.OptiScalerProxies.Count == 1:

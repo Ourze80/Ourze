@@ -10,6 +10,7 @@ using Xunit;
 
 namespace Hdlss.Core.Tests;
 
+[Collection("Services")]
 public class CompatibilityTests : IDisposable
 {
     private readonly Fixture _f = new();

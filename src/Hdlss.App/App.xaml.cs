@@ -61,10 +61,25 @@ public partial class App : Application
 
     private void OnUnhandled(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
-        _host?.Log.Error("Errore non gestito", e.Exception);
-        MessageBox.Show(e.Exception.Message, Loc.T("dlg.errorTitle"), MessageBoxButton.OK, MessageBoxImage.Error);
         e.Handled = true;
+        // One message at a time, and the same error at most once every 5 seconds: an error that repeats while its
+        // message is open must not stack dialogs or flood the log (the app would look frozen).
+        var key = e.Exception.GetType().FullName + "|" + e.Exception.Message;
+        var now = DateTime.UtcNow;
+        bool repeat = key == _lastErrorKey && now - _lastErrorAt < TimeSpan.FromSeconds(5);
+        _lastErrorKey = key;
+        _lastErrorAt = now;
+        if (repeat) return;
+        _host?.Log.Error("Errore non gestito", e.Exception);
+        if (_showingError) return;
+        _showingError = true;
+        try { MessageBox.Show(e.Exception.Message, Loc.T("dlg.errorTitle"), MessageBoxButton.OK, MessageBoxImage.Error); }
+        finally { _showingError = false; }
     }
+
+    private bool _showingError;
+    private string? _lastErrorKey;
+    private DateTime _lastErrorAt;
 
     protected override void OnExit(ExitEventArgs e)
     {

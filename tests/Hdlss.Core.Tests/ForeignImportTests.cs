@@ -7,6 +7,7 @@ using Xunit;
 
 namespace Hdlss.Core.Tests;
 
+[Collection("Services")]
 public class ForeignImportTests : IDisposable
 {
     private readonly Fixture _f = new();

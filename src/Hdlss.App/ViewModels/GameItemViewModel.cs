@@ -21,17 +21,19 @@ public sealed partial class GameItemViewModel(Game game, CoverService? covers = 
     public string Initial => Game.Name.Length > 0 ? Game.Name[..1].ToUpperInvariant() : "?";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StatusText), nameof(StatusBrush), nameof(IsActive), nameof(NeedsAttention))]
+    [NotifyPropertyChangedFor(nameof(StatusText), nameof(StatusTip), nameof(StatusBrush), nameof(IsActive), nameof(NeedsAttention))]
     private GameSummary _summary = GameSummary.Checking;
 
     public string StatusText => Summary.Text;
+    public string StatusTip => Summary.Tip ?? Summary.Text;
     public bool IsActive => Summary.Badge == GameBadge.NrActive;
-    public bool NeedsAttention => Summary.Badge is GameBadge.Legacy or GameBadge.Foreign or GameBadge.NoExe;
+    public bool NeedsAttention => Summary.Badge is GameBadge.Legacy or GameBadge.Foreign or GameBadge.NoExe or GameBadge.Warning;
 
     public Brush StatusBrush => (Brush)Application.Current.Resources[Summary.Badge switch
     {
         GameBadge.NrActive => "Success",                                  // active: green
         GameBadge.Legacy or GameBadge.Foreign or GameBadge.NoExe => "Accent", // to look at: brand cyan
+        GameBadge.Warning => "Warn",
         GameBadge.AntiCheat => "Danger",
         _ => "Muted",
     }];

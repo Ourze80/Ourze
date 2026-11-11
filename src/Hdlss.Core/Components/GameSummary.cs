@@ -3,10 +3,10 @@ using Hdlss.Core.Text;
 
 namespace Hdlss.Core.Components;
 
-public enum GameBadge { Checking, Ready, NrActive, Legacy, Foreign, AntiCheat, Protected, NoExe }
+public enum GameBadge { Checking, Ready, NrActive, Legacy, Foreign, AntiCheat, Protected, NoExe, Warning }
 
 /// <summary>One-line status for the library card. No network; computed in the background.</summary>
-public sealed record GameSummary(GameBadge Badge, string Text)
+public sealed record GameSummary(GameBadge Badge, string Text, string? Tip = null)
 {
     public static GameSummary Checking { get; } = new(GameBadge.Checking, "…");
 
@@ -25,16 +25,19 @@ public sealed record GameSummary(GameBadge Badge, string Text)
         var legacyInstalls = Legacy.LegacyInstalls.Find(folder, services.Log);
         bool legacy = legacyInstalls.Any(l => l.AdoptableAs != null && !state.Components.ContainsKey(l.AdoptableAs));
         int foreign = 0;
+        bool conflict = false;
         try
         {
-            var ctx = new GameContext(game, services, Hardware.GpuInfo.Unknown);
+            var ctx = new GameContext(game, services, Hardware.GpuInfo.Unknown, background: true);
             var skip = legacyInstalls.Where(l => l.AdoptableAs != null).Select(l => l.AdoptableAs!).ToHashSet(StringComparer.OrdinalIgnoreCase);
             foreign = ForeignInstalls.Detect(ctx, skip).Count;
+            conflict = NrConflicts.Check(ctx).Count > 0;
         }
         catch (Exception ex) when (ex is HdlssException or IOException or UnauthorizedAccessException)
         {
             services.Log.Debug($"Stato di {game.Name}: {ex.Message}");
         }
+        if (conflict) return new(GameBadge.Warning, Tx.Get("sum.conflict"), Tx.Get("sum.conflict.tip"));
         if (nr != null) return new(GameBadge.NrActive, legacy ? Tx.Get("sum.nrLegacy") : foreign > 0 ? Tx.Get("sum.nrForeign") : Tx.Get("sum.nrActive"));
         if (legacy) return new(GameBadge.Legacy, Tx.Get("sum.legacy"));
         if (foreign > 0) return new(GameBadge.Foreign, foreign == 1 ? Tx.Get("sum.foreign1") : Tx.Get("sum.foreignN", foreign));
