@@ -9,7 +9,7 @@
 
 HDLSS5 finds the games installed on your PC, works out how each one is built (engine, graphics API, DLSS, anti-cheat) and installs the right mods in the right place: ReShade with RenoDX NR, OptiScaler, the NR model for your GPU, the latest DLSS and Streamline DLLs, HDR mods and mod loaders. Every file it replaces is saved first, so you can always go back.
 
-**[⬇ Download HDLSS5 2.0](https://github.com/giorgiobascialla-hub/Ourze/releases/latest)**
+**[⬇ Download HDLSS5 2.0](https://github.com/Ourze80/Ourze/releases/latest)**
 
 ![Game library](assets/screenshot-library.png)
 
@@ -47,13 +47,13 @@ Every NVIDIA DLL in your games at a glance, compared with the latest releases. F
 
 ## Installation
 
-1. Download the `HDLSS5-Portable` zip from the [latest release](https://github.com/giorgiobascialla-hub/Ourze/releases/latest).
+1. Download the `HDLSS5-Portable` zip from the [latest release](https://github.com/Ourze80/Ourze/releases/latest).
 2. Extract it to a writable folder (not "Program Files") and run `HDLSS5.exe`.
 3. Always close the game before installing or removing anything.
 
 The app is not digitally signed, so Windows SmartScreen may ask for confirmation on first launch ("More info" › "Run anyway"). You can verify the zip with the `.sha256` file attached to the release.
 
-**Coming from 1.x?** Version 2.0 recognizes installations made with HDLSS5 1.x and can take them over without touching the game files, or restore the originals from the 1.x backups. Version 1.5.1 is still available among the [previous releases](https://github.com/giorgiobascialla-hub/Ourze/releases).
+**Coming from 1.x?** Version 2.0 recognizes installations made with HDLSS5 1.x and can take them over without touching the game files, or restore the originals from the 1.x backups. Version 1.5.1 is still available among the [previous releases](https://github.com/Ourze80/Ourze/releases).
 
 Installation is blocked in games with anti-cheat (EasyAntiCheat, BattlEye). HDLSS5 is an independent project, not affiliated with NVIDIA; components are downloaded from their authors' official repositories and verified.
 

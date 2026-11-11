@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 HDLSS5 2.x: a portable Windows (x64) WPF app, .NET 8, that installs and manages DLSS 5 / Neural Rendering mods on PC games. Supported paths: ReShade + RenoDX NR, Feeder, OptiScaler. It also manages HDR mods, loaders (ASI Loader, UE4SS, REFramework) and NVIDIA DLL updates (DLSS, Streamline, NR model). The interface is Italian, with an English option in Settings; texts on GitHub (README, release notes, `README.txt` shipped in the zip) are English.
 
-Branches: work happens on `v2`; `main` on GitHub (`giorgiobascialla-hub/Ourze`) is a merge of `v2`. Releases are `vX.Y.Z` tags on `main` with the portable zip and its `.sha256` attached.
+Branches: work happens on `v2`; `main` on GitHub (`Ourze80/Ourze`) is a merge of `v2`. Releases are `vX.Y.Z` tags on `main` with the portable zip and its `.sha256` attached.
 
 ## Commands
 
