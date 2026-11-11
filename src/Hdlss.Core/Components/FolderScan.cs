@@ -43,7 +43,7 @@ public sealed class FolderScan
 
     public static FolderScan Run(string folder, string gameRoot)
     {
-        var s = new FolderScan();
+        var s = new FolderScan { _folder = folder };
         foreach (var name in ReShadeNames)
         {
             var path = PathGuard.Resolve(folder, name);
@@ -81,7 +81,13 @@ public sealed class FolderScan
 
     /// <summary>Neural Rendering add-ons not counting the given (managed) relative paths.</summary>
     public IEnumerable<string> NrAddons() =>
-        Addons.Where(a => Regex.IsMatch(Path.GetFileName(a), "renodx-dlss|dlss5|dlssnr|neural|shortfuse", RegexOptions.IgnoreCase));
+        Addons.Where(a => Regex.IsMatch(Path.GetFileName(a), "renodx-dlss|dlss5|dlssnr|neural|shortfuse", RegexOptions.IgnoreCase)
+                          || IsNrAddon(a));
+
+    /// <summary>True when the add-on (relative path) is a DLSS5 NR build, whatever its file name.</summary>
+    public bool IsNrAddon(string relative) => NrAddonInfo.Read(PathGuard.Resolve(_folder, relative)) != null;
+
+    private string _folder = "";
 
     public static bool IsReShade(string path) =>
         PeFile.IsPe64(path) && PeFile.Identity(path).Contains("ReShade", StringComparison.OrdinalIgnoreCase);

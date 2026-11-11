@@ -50,6 +50,9 @@ public static class NrAdvisor
         bool dlss = HasNativeDlss(ctx);
         if (Installed(ctx) is { } current) return new(current, Tx.Get("nr.reason.installed"), dlss);
         if (!ctx.Gpu.SupportsNr) return new(null, Tx.Get("nr.reason.noGpu"), dlss);
+        // A locally imported DLSS5 NR 12 needs neither native DLSS nor Feeder: RenoDX NR card, any DX11/12/Vulkan game.
+        if (ctx.Services.NrAddons.Newest != null && !(ctx.Api == GraphicsApi.DX12 && dlss) && ctx.Api is GraphicsApi.DX11 or GraphicsApi.DX12 or GraphicsApi.Vulkan)
+            return new(NrPath.Native, Tx.Get("nr.reason.lecram12"), dlss);
         return ctx.Api switch
         {
             GraphicsApi.DX12 when dlss => new(NrPath.Native, Tx.Get("nr.reason.native"), true),

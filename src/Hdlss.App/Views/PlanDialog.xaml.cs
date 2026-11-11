@@ -9,7 +9,7 @@ public partial class PlanDialog : Window
     {
         InitializeComponent();
         bool import = plan.Adopt?.Meta.ContainsKey("imported") == true;
-        Header.Text = import ? $"{Loc.T("plan.import")} · {System.Text.RegularExpressions.Regex.Replace(plan.ComponentName, @"\s·\s(importazione|import|imported)$", "")}"
+        Header.Text = plan.Cleanup ? plan.ComponentName : import ? $"{Loc.T("plan.import")} · {System.Text.RegularExpressions.Regex.Replace(plan.ComponentName, @"\s·\s(importazione|import|imported)$", "")}"
             : $"{Loc.T(plan.Adopt != null ? "plan.adopt" : plan.IsRemoval ? "plan.removal" : "plan.install")} · {plan.ComponentName}";
         int adds = plan.Files.Count(f => !f.IsDelete && f.Expected == null);
         int replaces = plan.Files.Count(f => !f.IsDelete && f.Expected != null);

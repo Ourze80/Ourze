@@ -96,6 +96,19 @@ public sealed partial class ComponentViewModel : ObservableObject
     /// <summary>Installed by another tool and recognised: can be taken over with "Importa in HDLSS5".</summary>
     public bool CanImportExternal => _owner.Foreign.Any(f => f.Install.ComponentId == Component.Id);
     public string ImportLabel => (Component as ILocalImport)?.ImportLabel ?? "";
+    /// <summary>The RenoDX NR card also takes a locally imported DLSS5 NR (Lecram 12.x) package.</summary>
+    public bool CanImportNr => Component.Id == RenoDxNrComponent.ComponentId;
+    /// <summary>"Importate: 12.9.9, 12.9.8" or empty.</summary>
+    public string NrImportedText
+    {
+        get
+        {
+            if (!CanImportNr) return "";
+            var list = _owner.Main.Host.Services.NrAddons.Packages;
+            return list.Count == 0 ? "" : Loc.F("nr.imported", string.Join(", ", list.Select(p => p.Version.ToString())));
+        }
+    }
+    public bool HasNrImported => NrImportedText.Length > 0;
     public string CategoryName => ComponentCatalog.CategoryName(Component.Category);
 
     /// <summary>Main button: shown only when there is something to do.</summary>
@@ -280,6 +293,7 @@ public sealed partial class ComponentViewModel : ObservableObject
     }
 
     private bool CanInstall() => !HasBlockers && !_owner.Main.Busy;
+    private bool CanImportNrNow() => !_owner.Main.Busy;
     private bool CanRemove() => IsManaged && !_owner.Main.Busy;
 
     [RelayCommand]
@@ -321,6 +335,31 @@ public sealed partial class ComponentViewModel : ObservableObject
             await Task.Run(() => host.Components.Apply(ctx, plan, progress), cancel);
         });
         if (ok) await _owner.AfterChangeAsync(Component.Id);
+    }
+
+    public const string NrAuthorUrl = "https://buymeacoffee.com/lecram";
+
+    [RelayCommand]
+    private static void OpenNrAuthor() =>
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(NrAuthorUrl) { UseShellExecute = true });
+
+    [RelayCommand(CanExecute = nameof(CanImportNrNow))]
+    private async Task ImportNrAsync()
+    {
+        var source = Dialogs.PickNrSource();
+        if (source == null) return;
+        var library = _owner.Main.Host.Services.NrAddons;
+        NrAddonPackage? package = null;
+        string? error = null;
+        var ok = await _owner.Main.RunAsync(Loc.F("comp.op.import", Name), async (progress, cancel) =>
+        {
+            try { package = await Task.Run(() => library.Import(source), cancel); }
+            catch (HdlssException ex) { error = ex.Message; }
+        });
+        if (!ok) return;
+        if (error != null) { Dialogs.Error(error, Loc.T("nr.import.error")); return; }
+        if (package != null) Dialogs.Info(Loc.F("nr.import.done", package.Label));
+        await _owner.AfterChangeAsync(Component.Id);
     }
 
     [RelayCommand(CanExecute = nameof(CanRemove))]

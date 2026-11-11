@@ -54,6 +54,8 @@ public sealed class Services(AppPaths paths, AppSettings settings, ContentStore 
     public Log Log { get; } = log;
     /// <summary>Game covers (custom, store and automatic).</summary>
     public CoverService Covers { get; } = new(paths, http, log);
+    /// <summary>DLSS5 NR (Lecram 12.x) packages the user imported; never bundled or downloaded.</summary>
+    public NrAddonLibrary NrAddons { get; } = NrAddonLibrary.Create(paths, log);
 }
 
 /// <summary>A snapshot of one game folder used for detection and planning.</summary>
@@ -71,8 +73,9 @@ public sealed class GameContext
     public string? StateStamp { get; private set; }
     public FolderScan Scan { get; private set; }
 
-    public GameContext(Game game, Services services, GpuInfo gpu)
+    public GameContext(Game game, Services services, GpuInfo gpu, bool background = false)
     {
+        _background = background;
         if (!game.HasExe) throw new BlockedException(Tx.Get("ctx.noExe"));
         Game = game;
         Services = services;
@@ -83,13 +86,17 @@ public sealed class GameContext
         Api = manual ?? DetectedApi;
         ApiCertain = manual != null || certain;
         State = services.States.Load(game.Id, Folder);
+        RenoDxNrComponent.AdoptManualReplacement(services, State, !background);
         StateStamp = services.States.Stamp(Folder);
         Scan = FolderScan.Run(Folder, game.Root);
     }
 
+    private readonly bool _background;
+
     public void Refresh()
     {
         State = Services.States.Load(Game.Id, Folder);
+        RenoDxNrComponent.AdoptManualReplacement(Services, State, !_background);
         StateStamp = Services.States.Stamp(Folder);
         Scan = FolderScan.Run(Folder, Game.Root);
     }

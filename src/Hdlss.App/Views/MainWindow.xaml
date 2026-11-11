@@ -141,6 +141,12 @@
                                     Visibility="{Binding ShowReinstall, Converter={StaticResource Vis}}" />
                             <Button Content="{Binding ImportLabel}" Command="{Binding ImportCommand}"
                                     Visibility="{Binding CanImportFile, Converter={StaticResource Vis}}" />
+                            <Button Content="{Binding [nr.import], Source={x:Static app:Loc.Instance}}" Command="{Binding ImportNrCommand}"
+                                    ToolTip="{Binding [nr.import.tip], Source={x:Static app:Loc.Instance}}"
+                                    Visibility="{Binding CanImportNr, Converter={StaticResource Vis}}" />
+                            <Button Content="{Binding [nr.author], Source={x:Static app:Loc.Instance}}" Command="{Binding OpenNrAuthorCommand}"
+                                    ToolTip="{Binding [nr.author.tip], Source={x:Static app:Loc.Instance}}"
+                                    Visibility="{Binding CanImportNr, Converter={StaticResource Vis}}" />
                             <Button Style="{StaticResource DangerButton}" Command="{Binding RemoveCommand}"
                                     Content="{Binding [component.remove], Source={x:Static app:Loc.Instance}}"
                                     Visibility="{Binding IsManaged, Converter={StaticResource Vis}}" />
@@ -148,6 +154,8 @@
                         <TextBlock Text="{Binding VersionsText}" ToolTip="{Binding VersionsText}" Foreground="{StaticResource Muted}" FontSize="11"
                                    TextTrimming="CharacterEllipsis" Margin="0,6,0,0"
                                    Visibility="{Binding HasVersions, Converter={StaticResource Vis}}" />
+                        <TextBlock Text="{Binding NrImportedText}" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,6,0,0"
+                                   Visibility="{Binding HasNrImported, Converter={StaticResource Vis}}" />
                         <TextBlock Text="{Binding [comp.notNewer], Source={x:Static app:Loc.Instance}}" Foreground="{StaticResource Warn}" FontSize="11" Margin="0,2,0,0"
                                    Visibility="{Binding ShowDowngradeWarning, Converter={StaticResource Vis}}" />
                     </StackPanel>
@@ -279,7 +287,7 @@
                                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
                                                 <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                                     <Ellipse Width="7" Height="7" Fill="{Binding StatusBrush}" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                                    <TextBlock Text="{Binding StatusText}" FontSize="12" Foreground="{Binding StatusBrush}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxWidth="135" />
+                                                    <TextBlock Text="{Binding StatusText}" FontSize="12" Foreground="{Binding StatusBrush}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxWidth="135" ToolTip="{Binding StatusTip}" />
                                                 </StackPanel>
                                             </StackPanel>
                                         </Border>
@@ -334,7 +342,7 @@
                         <Button Content="{Binding [cover.change], Source={x:Static app:Loc.Instance}}" Command="{Binding ChangeCoverCommand}"
                                 Background="#AA0F1115" ToolTip="{Binding [cover.change.tip], Source={x:Static app:Loc.Instance}}" />
                     </StackPanel>
-                    <StackPanel VerticalAlignment="Bottom" Margin="40,0,40,8">
+                    <StackPanel VerticalAlignment="Bottom" Margin="40,0,40,8" MaxWidth="1100">
                         <TextBlock Text="{Binding Name}" FontSize="34" FontWeight="Bold" TextWrapping="Wrap" />
                         <ItemsControl ItemsSource="{Binding Chips}" Margin="0,10,0,0">
                             <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
@@ -347,7 +355,7 @@
                     </StackPanel>
                 </Grid>
 
-                <StackPanel Margin="40,8,40,40" MaxWidth="1100" HorizontalAlignment="Left">
+                <StackPanel Margin="40,8,40,40" MaxWidth="1100">
                     <ProgressBar IsIndeterminate="True" Visibility="{Binding Loading, Converter={StaticResource Vis}}" Margin="0,0,0,12" />
 
                     <!-- One-line summary -->
@@ -370,9 +378,9 @@
                                 <RadioButton Style="{StaticResource PathCard}" GroupName="method" IsChecked="{Binding IsMethodReShade}">
                                     <StackPanel>
                                         <DockPanel>
-                                            <Border DockPanel.Dock="Right" Background="{DynamicResource AccentTint}" CornerRadius="8" Padding="8,2"
+                                            <Border DockPanel.Dock="Right" Background="{DynamicResource Accent}" CornerRadius="8" Padding="8,2"
                                                     Visibility="{Binding ReShadeRecommended, Converter={StaticResource Vis}}">
-                                                <TextBlock Text="{Binding [card.recommended], Source={x:Static app:Loc.Instance}}" FontSize="11" Foreground="{DynamicResource Accent}" />
+                                                <TextBlock Text="{Binding [card.recommended], Source={x:Static app:Loc.Instance}}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource OnAccent}" />
                                             </Border>
                                             <TextBlock Text="{Binding [card.viaReShade], Source={x:Static app:Loc.Instance}}" FontSize="16" FontWeight="SemiBold" />
                                         </DockPanel>
@@ -382,9 +390,9 @@
                                 <RadioButton Style="{StaticResource PathCard}" GroupName="method" IsChecked="{Binding IsMethodOpti}">
                                     <StackPanel>
                                         <DockPanel>
-                                            <Border DockPanel.Dock="Right" Background="{DynamicResource AccentTint}" CornerRadius="8" Padding="8,2"
+                                            <Border DockPanel.Dock="Right" Background="{DynamicResource Accent}" CornerRadius="8" Padding="8,2"
                                                     Visibility="{Binding OptiRecommended, Converter={StaticResource Vis}}">
-                                                <TextBlock Text="{Binding [card.recommended], Source={x:Static app:Loc.Instance}}" FontSize="11" Foreground="{DynamicResource Accent}" />
+                                                <TextBlock Text="{Binding [card.recommended], Source={x:Static app:Loc.Instance}}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource OnAccent}" />
                                             </Border>
                                             <TextBlock Text="{Binding [card.viaOpti], Source={x:Static app:Loc.Instance}}" FontSize="16" FontWeight="SemiBold" />
                                         </DockPanel>

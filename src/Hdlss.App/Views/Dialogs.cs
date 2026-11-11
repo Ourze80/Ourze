@@ -40,6 +40,18 @@ public static class Dialogs
         return dialog.ShowDialog(Owner) == true ? dialog.FileName : null;
     }
 
+    /// <summary>One file dialog: dlss5-nr.addon64 (its folder is imported) or a .zip.</summary>
+    public static string? PickNrSource()
+    {
+        var dialog = new OpenFileDialog { Filter = Loc.T("nr.import.zipFilter"), Title = Loc.T("nr.import.title") };
+        if (dialog.ShowDialog(Owner) != true) return null;
+        if (dialog.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) return dialog.FileName;
+        var folder = Path.GetDirectoryName(dialog.FileName);
+        if (folder != null && Path.GetFileName(folder).Equals("dlss5-nr-host", StringComparison.OrdinalIgnoreCase))
+            folder = Path.GetDirectoryName(folder) ?? folder;
+        return folder;
+    }
+
     public static void Guide() => new GuideDialog { Owner = Owner }.ShowDialog();
 
     public static string? PickFolder(string? initial)

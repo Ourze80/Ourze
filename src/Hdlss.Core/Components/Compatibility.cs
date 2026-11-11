@@ -5,7 +5,9 @@ using Hdlss.Core.Transactions;
 
 namespace Hdlss.Core.Components;
 
-public sealed record CompatIssue(string Text, bool Fixable);
+public enum CompatKind { Loader, NrAddons }
+
+public sealed record CompatIssue(string Text, bool Fixable, CompatKind Kind = CompatKind.Loader);
 
 /// <summary>
 /// Keeps ReShade and OptiScaler working together. The usual breakage with other tools is a
@@ -44,6 +46,7 @@ public static class Compatibility
         // Two Neural Rendering passes: OptiScaler with NR on plus a ReShade NR add-on.
         if (opti && OptiScalerNrEnabled(ctx) && s.Addons.Any(a => Regex.IsMatch(Path.GetFileName(a), "renodx-dlss|dlss5-feed", RegexOptions.IgnoreCase)))
             issues.Add(new(Tx.Get("compat.twoNr"), false));
+        issues.AddRange(NrConflicts.Check(ctx));
         return issues;
     }
 
@@ -56,7 +59,9 @@ public static class Compatibility
     /// <summary>The plan that resolves the fixable issues (moving ReShade to the right loader), or null.</summary>
     public static ChangePlan? PlanFix(GameContext ctx)
     {
-        if (!Check(ctx).Any(i => i.Fixable)) return null;
+        var fixable = Check(ctx).Where(i => i.Fixable).ToList();
+        if (fixable.Any(i => i.Kind == CompatKind.NrAddons) && NrConflicts.PlanFix(ctx) is { } cleanup) return cleanup;
+        if (!fixable.Any(i => i.Kind == CompatKind.Loader)) return null;
         var reshade = (ReShadeComponent)ComponentCatalog.Get(ReShadeComponent.ComponentId);
         var plan = reshade.PlanRelocate(ctx);
         plan.Notes.Insert(0, Tx.Get("compat.fixNote"));

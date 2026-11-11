@@ -72,6 +72,11 @@ public sealed class ChangePlan
     /// <summary>When set, this record is stored as-is (adoption of a 1.x install).</summary>
     public ComponentRecord? Adopt { get; init; }
 
+    /// <summary>Housekeeping across components (conflict cleanup): no component record is created or replaced.</summary>
+    public bool Cleanup { get; init; }
+    /// <summary>Cleanup only: paths no record owns any more after the plan, and "ini:name" early-load entries to forget.</summary>
+    public List<string> Disown { get; } = [];
+
     public bool IsEmpty => Files.Count == 0;
 
     public string Describe()
