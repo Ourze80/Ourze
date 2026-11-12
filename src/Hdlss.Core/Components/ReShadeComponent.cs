@@ -87,6 +87,8 @@ public sealed partial class ReShadeComponent : ComponentBase
     /// <summary>The loader file ReShade should use in this folder.</summary>
     public static string DesiredLoader(GameContext ctx, string? currentManaged) =>
         ctx.Api == GraphicsApi.Vulkan ? Vulkan.ReShadeDll
+        // API not recognized (override lost, game updated): never turn a working Vulkan layer into a DirectX proxy.
+        : ctx.Api == GraphicsApi.Unknown && string.Equals(currentManaged, Vulkan.ReShadeDll, StringComparison.OrdinalIgnoreCase) ? Vulkan.ReShadeDll
         : ctx.Scan.OptiScalerProxy != null ? "ReShade64.dll"
         : currentManaged != null && FolderScan.ProxyNames.Contains(currentManaged, StringComparer.OrdinalIgnoreCase) ? currentManaged : "dxgi.dll";
 

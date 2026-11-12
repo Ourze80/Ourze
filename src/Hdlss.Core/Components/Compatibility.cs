@@ -40,6 +40,9 @@ public static class Compatibility
             else if (!string.Equals(desired, loader, StringComparison.OrdinalIgnoreCase) && !opti)
                 issues.Add(new(Tx.Get("compat.shouldUse", desired), true));
         }
+        // Vulkan game with ReShade installed as a DirectX proxy (the API was unknown at the time): it never loads.
+        else if (reshade != null && loader != null && !loader.Equals(Vulkan.ReShadeDll, StringComparison.OrdinalIgnoreCase))
+            issues.Add(new(Tx.Get("compat.vulkanLayer", loader), true));
         else if (reshade == null && opti && s.ReShadeLoaders.Any(l => FolderScan.ProxyNames.Contains(l, StringComparer.OrdinalIgnoreCase)))
             issues.Add(new(Tx.Get("compat.foreignReshade", s.ReShadeLoaders[0]), false));
 

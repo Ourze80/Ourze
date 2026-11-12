@@ -103,6 +103,24 @@ public class DetectionTests
     }
 
     [Fact]
+    public void A_vulkan_renderer_dll_beside_the_exe_decides_when_the_exe_imports_no_api()
+    {
+        // Hookshot: hookshot.exe imports no graphics API and loads hookshot_vk.dll at run time.
+        var dir = Path.Combine(Path.GetTempPath(), "hdlss-vk-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "SDL3.dll"), "x");
+            Assert.False(ExecutableDetector.VulkanOnlyRuntime(dir));
+            File.WriteAllText(Path.Combine(dir, "hookshot_vk.dll"), "x");
+            Assert.True(ExecutableDetector.VulkanOnlyRuntime(dir));
+            File.WriteAllText(Path.Combine(dir, "amd_fidelityfx_dx12.dll"), "x"); // ships both back ends: no evidence
+            Assert.False(ExecutableDetector.VulkanOnlyRuntime(dir));
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+
+    [Fact]
     public void Dx12_games_that_import_only_d3d11_are_detected()
     {
         // Dragon's Dogma 2 (RE Engine): loads d3d12 at run time, imports d3d11 for video.
@@ -159,6 +177,25 @@ public class DetectionTests
         Directory.CreateDirectory(Path.GetDirectoryName(exe)!);
         Directory.CreateDirectory(Path.Combine(root, "Engine"));
         try { Assert.Equal(root, GameLibrary.ManualRoot(exe)); }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void Manual_game_in_a_bin_folder_takes_the_folder_above_so_sibling_dlls_are_found()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "hdlss-bin-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "Game", "bin"));
+            Directory.CreateDirectory(Path.Combine(root, "Game", "ngx"));
+            File.WriteAllText(Path.Combine(root, "Game", "ngx", "nvngx_dlss.dll"), "x");
+            var exe = Path.Combine(root, "Game", "bin", "game.exe");
+            var game = GameLibrary.ManualRoot(exe);
+            Assert.Equal(Path.Combine(root, "Game"), game);
+            Assert.Single(Hdlss.Core.Components.DlssFiles.Find(game));
+            Assert.Equal(Path.Combine(root, "Other"), GameLibrary.ManualRoot(Path.Combine(root, "Other", "game.exe")));
+            Assert.Equal("C:/bin", GameLibrary.ManualRoot("C:/bin/game.exe").Replace('\\', '/'));
+        }
         finally { Directory.Delete(root, true); }
     }
 }
