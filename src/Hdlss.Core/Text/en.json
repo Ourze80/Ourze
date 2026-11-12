@@ -43,6 +43,7 @@
   "compat.loadReshadeOff": "OptiScaler isn't set to load ReShade (LoadReshade=false).",
   "compat.shouldUse": "ReShade should use {0}.",
   "compat.foreignReshade": "ReShade from another program ({0}) and OptiScaler load separately. Import ReShade into HDLSS5, then «Fix».",
+  "compat.vulkanLayer": "Vulkan game, but ReShade is installed as {0}: it won't load like this. It must be reinstalled as a Vulkan layer.",
   "compat.twoNr": "DLSS 5 is active both in OptiScaler and as a ReShade add-on: two NR passes together don't work. Remove one (OptiScaler Standard + RenoDX NR, or OptiScaler F5 without an NR add-on).",
   "compat.nrTwice": "Two DLSS 5 NR add-ons loaded: the game uses two versions at once ({0}). Press «Fix» to keep only {1}.",
   "compat.nrMany": "Several DLSS 5 NR add-ons loaded together ({0}): the game can use only one. Press «Fix» to keep only {1}.",

@@ -153,6 +153,9 @@ public sealed partial class GameLibrary(AppSettings settings, Log log)
             try
             {
                 var full = profile.ModFolder == "." ? Path.GetFullPath(game.Root) : PathGuard.Resolve(game.Root, profile.ModFolder);
+                // Saved when the root was still the exe folder (bin layouts): the same relative path from there.
+                if (!Directory.Exists(full) && profile.ModFolder != "." && Directory.Exists(PathGuard.Resolve(game.ExeFolder, profile.ModFolder)))
+                    full = PathGuard.Resolve(game.ExeFolder, profile.ModFolder);
                 if (Directory.Exists(full)) { game.ModFolder = full; return; }
                 game.Warnings.Add(Tx.Get("game.warn.modFolderMissing"));
             }
@@ -232,9 +235,14 @@ public sealed partial class GameLibrary(AppSettings settings, Log log)
     }
 
     /// <summary>For Unreal layouts (…/Project/Binaries/Win64/x.exe) the root is the install folder.</summary>
+    private static readonly HashSet<string> BinFolders = new(StringComparer.OrdinalIgnoreCase) { "bin", "bin64", "x64", "binaries" };
+
     public static string ManualRoot(string exe)
     {
         var local = new DirectoryInfo(Path.GetDirectoryName(exe)!);
+        // <game>/bin/game.exe with the game's own DLLs beside "bin" (e.g. <game>/ngx): the game is the folder above.
+        // Never a drive root, where the folder above would hold other games.
+        if (BinFolders.Contains(local.Name) && local.Parent is { Parent: not null } above) return above.FullName;
         if (local.Name is not ("Win64" or "WinGDK") || local.Parent?.Name != "Binaries" || local.Parent.Parent == null) return local.FullName;
         var project = local.Parent.Parent;
         var install = project.Parent;

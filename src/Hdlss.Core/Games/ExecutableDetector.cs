@@ -143,7 +143,20 @@ public static partial class ExecutableDetector
         // starts from a launcher stub (Unreal: <Project>/Binaries/Win64).
         string[] folders = modFolder != null ? [Path.GetDirectoryName(exe)!, modFolder] : [Path.GetDirectoryName(exe)!];
         bool agility = folders.Any(f => File.Exists(Path.Combine(f, "D3D12Core.dll")) || File.Exists(Path.Combine(f, "D3D12", "D3D12Core.dll")));
-        return ClassifyApi(PeFile.Read(exe).Imports, agility, out certain);
+        var api = ClassifyApi(PeFile.Read(exe).Imports, agility, out certain);
+        return api == GraphicsApi.Unknown && folders.Any(VulkanOnlyRuntime) ? GraphicsApi.Vulkan : api;
+    }
+
+    /// <summary>
+    /// The folder ships a Vulkan renderer DLL (hookshot_vk.dll, renderer_vulkan.dll) and nothing for
+    /// DirectX 12: a game that imports no graphics API and loads its renderer at run time.
+    /// </summary>
+    internal static bool VulkanOnlyRuntime(string folder)
+    {
+        var names = SafeFiles(folder, "*.dll").Select(f => Path.GetFileNameWithoutExtension(f)!).ToList();
+        static bool Has(string n, params string[] marks) => marks.Any(m => n.EndsWith(m, StringComparison.OrdinalIgnoreCase));
+        return names.Any(n => Has(n, "_vk", "_vulkan", "-vk", "-vulkan"))
+            && !names.Any(n => Has(n, "_dx12", "_d3d12", "-dx12", "-d3d12", "_dx11", "_d3d11", "-dx11", "-d3d11") || n.Equals("D3D12Core", StringComparison.OrdinalIgnoreCase));
     }
 
     internal static GraphicsApi ClassifyApi(IReadOnlyCollection<string> imports, bool agility, out bool certain)

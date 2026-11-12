@@ -43,6 +43,7 @@
   "compat.loadReshadeOff": "OptiScaler non è impostato per caricare ReShade (LoadReshade=false).",
   "compat.shouldUse": "ReShade dovrebbe usare {0}.",
   "compat.foreignReshade": "ReShade di un altro programma ({0}) e OptiScaler si caricano separatamente. Importa ReShade in HDLSS5 e poi «Risolvi».",
+  "compat.vulkanLayer": "Gioco Vulkan, ma ReShade è installato come {0}: così non si carica. Va reinstallato come layer Vulkan.",
   "compat.twoNr": "DLSS 5 è attivo sia in OptiScaler sia come add-on ReShade: due passaggi NR insieme non funzionano. Togline uno (OptiScaler Standard + RenoDX NR, oppure OptiScaler F5 senza add-on NR).",
   "compat.nrTwice": "Due add-on DLSS 5 NR caricati: il gioco ne usa due versioni insieme ({0}). Premi «Risolvi» per tenere solo {1}.",
   "compat.nrMany": "Più add-on DLSS 5 NR caricati insieme ({0}): il gioco ne può usare uno solo. Premi «Risolvi» per tenere solo {1}.",
