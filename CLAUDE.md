@@ -44,7 +44,7 @@ Two projects: `src/Hdlss.Core` (all logic, no UI) and `src/Hdlss.App` (WPF, MVVM
 - `RemovalPlanner` builds the inverse plan: it restores originals and reverts INI keys. All paths go through `PathGuard`, which rejects escapes, reparse points and device names; extra roots, like the Unreal config folder, are declared with `AddRoot`.
 
 **Other Core areas.**
-- `GameLibrary` / `XboxLibrary`: Steam and Xbox discovery plus manual games.
+- `GameLibrary` / `XboxLibrary` / `StoreLibraries` (`EpicLibrary`, `GogLibrary`): Steam, Xbox, Epic (launcher `*.item` manifests, `LauncherInstalled.dat` fallback) and GOG (registry `GOG.com\Games`) discovery plus manual games. Epic/GOG set `Game.DeclaredExe`, used by `Resolve` when auto-detection is only a guess; Epic games launch through the `com.epicgames.launcher://` URI.
 - `ForeignInstalls` and `Legacy`: import of mods installed by other tools or by HDLSS5 1.x. 1.x data is read-only.
 - `Net`: `HttpService` with cache and in-flight de-duplication; GitHub releases for latest versions.
 - `Maintenance`: pruning of journals, blobs and caches at startup.

@@ -1,6 +1,6 @@
 namespace Hdlss.Core.Games;
 
-public enum GameStore { Steam, Xbox, Manual }
+public enum GameStore { Steam, Xbox, Manual, Epic, Gog }
 
 public enum GraphicsApi { Unknown, DX11, DX12, Vulkan }
 
@@ -16,8 +16,10 @@ public sealed class Game
     public EngineKind Engine { get; set; }
     /// <summary>Unreal project name (folder above Binaries), used to find Saved/Config.</summary>
     public string? Project { get; set; }
-    /// <summary>Xbox: "PackageFamilyName!AppId" for shell:AppsFolder launching.</summary>
+    /// <summary>Xbox: "PackageFamilyName!AppId" for shell:AppsFolder launching. Epic: the launcher AppName.</summary>
     public string? LaunchId { get; set; }
+    /// <summary>Epic/GOG: executable declared by the launcher (full path inside Root), used when auto-detection is unsure.</summary>
+    public string? DeclaredExe { get; set; }
     public string? Cover { get; set; }
     public string? Hero { get; set; }
     /// <summary>Set when the install folder is protected (e.g. WindowsApps): nothing can be modified.</summary>
@@ -36,7 +38,7 @@ public sealed class Game
     /// <summary>Folder that receives proxy DLLs and add-ons: the mod folder, else the executable's directory.</summary>
     public string Folder => ModFolder ?? ExeFolder;
     public bool HasExe => !string.IsNullOrEmpty(Exe) && File.Exists(Exe);
-    public string StoreLabel => Store switch { GameStore.Steam => "STEAM", GameStore.Xbox => "XBOX", _ => "PC" };
+    public string StoreLabel => Store switch { GameStore.Steam => "STEAM", GameStore.Xbox => "XBOX", GameStore.Epic => "EPIC", GameStore.Gog => "GOG", _ => "PC" };
 
     public override string ToString() => Name;
 }

@@ -86,6 +86,12 @@ public static class GameLauncher
             Process.Start(new ProcessStartInfo(steam, args) { UseShellExecute = true });
             return;
         }
+        if (EpicLibrary.LaunchUri(game) is { } epic)
+        {
+            // Epic titles often refuse to start without the launcher's ownership token; fall back to the exe without it.
+            try { Process.Start(new ProcessStartInfo(epic) { UseShellExecute = true }); return; }
+            catch (System.ComponentModel.Win32Exception) { }
+        }
         if (!game.HasExe) throw new HdlssException(Tx.Get("vk.noExe"));
         Process.Start(new ProcessStartInfo(game.Exe) { WorkingDirectory = game.ExeFolder, UseShellExecute = true });
     }

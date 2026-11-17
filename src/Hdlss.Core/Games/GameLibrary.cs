@@ -75,6 +75,14 @@ public sealed partial class GameLibrary(AppSettings settings, Log log)
         }
         try { games.AddRange(XboxLibrary.Scan(settings.ExtraXboxLibraries, log).Where(x => !seen.Contains(x.Id))); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { log.Warn("Libreria Xbox", ex); }
+        // Epic / GOG: a folder already listed by another store (same install) is not shown twice.
+        var roots = new HashSet<string>(games.Select(g => g.Root), StringComparer.OrdinalIgnoreCase);
+        foreach (var (store, scan) in new (string, Func<List<Game>>)[] { ("Epic", () => EpicLibrary.Scan(log)), ("GOG", () => GogLibrary.Scan(log)) })
+        {
+            cancel.ThrowIfCancellationRequested();
+            try { games.AddRange(scan().Where(x => !seen.Contains(x.Id) && roots.Add(x.Root))); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) { log.Warn($"Libreria {store}", ex); }
+        }
         foreach (var entry in settings.ManualGames)
         {
             try { games.Add(Manual(entry.Exe, entry.Name)); }
@@ -114,6 +122,9 @@ public sealed partial class GameLibrary(AppSettings settings, Log log)
         if (!game.HasExe)
         {
             var (exe, certain) = ExecutableDetector.Pick(game.Root, accept);
+            // Epic/GOG declare their executable: trust it over a size-based guess.
+            if (!certain && game.DeclaredExe is { } declared && File.Exists(declared) && PathGuard.IsUnder(declared, game.Root) && accept(declared))
+                (exe, certain) = (declared, true);
             game.Exe = exe;
             if (exe.Length == 0) game.Warnings.Add(Tx.Get("game.warn.noExe"));
             else if (!certain) game.Warnings.Add(Tx.Get("game.warn.exeBySize"));
