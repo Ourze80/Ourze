@@ -11,7 +11,7 @@ GETTING STARTED
 1. Extract the zip to a folder you can write to (e.g. D:\Games\HDLSS5).
    Don't use "Program Files" and don't run it from inside the zip.
 2. Run HDLSS5.exe (no administrator rights needed).
-3. The app finds Steam and Xbox/Game Pass games by itself. Others can be added with "+ Aggiungi gioco" (Add game).
+3. The app finds Steam, Xbox/Game Pass, Epic Games Store and GOG games by itself. Others can be added with "+ Aggiungi gioco" (Add game).
 
 QUICK GUIDE
 - Open a game from the library: the card at the top explains its status and offers a single button

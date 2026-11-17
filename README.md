@@ -15,7 +15,7 @@ HDLSS5 finds the games installed on your PC, works out how each one is built (en
 
 ## What it does
 
-- **Automatic library**: finds Steam and Xbox / Game Pass games; others can be added manually. Each cover shows the game's status in one line (Neural Rendering active, mods to import, ready to configure…).
+- **Automatic library**: finds Steam, Xbox / Game Pass, Epic Games Store and GOG games; others can be added manually. Each cover shows the game's status in one line (Neural Rendering active, mods to import, ready to configure…).
 - **One button to start**: the game page explains the situation in plain language and offers a single main action, such as "Enable Neural Rendering".
 - **"Did it work?"**: after a few minutes of play, it reads the game logs and tells you whether Neural Rendering actually started.
 - **Always reversible**: every change goes into the history; "Remove" puts the game's original files back.
@@ -66,7 +66,7 @@ src/Hdlss.Core     UI-free logic (testable)
   IO/              PathGuard, FileHash, PeFile, IniDocument, Archives
   Storage/         AppPaths, ContentStore (content-addressed backups), JsonFile
   Transactions/    PlanBuilder, RemovalPlanner, TransactionEngine
-  Games/           GameLibrary (Steam, Xbox, manual), ExecutableDetector
+  Games/           GameLibrary (Steam, Xbox, Epic, GOG, manual), ExecutableDetector
   Net/             HttpService (ETag cache, verified downloads)
   Components/      ReShade, RenoDX, OptiScaler, NR model, DLLs, HDR, loaders
   Legacy/          reading and restoring 1.x installations
